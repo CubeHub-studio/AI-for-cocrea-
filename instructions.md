@@ -1,3 +1,4 @@
+go to extension.js (on git page)
 Copy link
 open cocrea
 open your project (or make a new one)

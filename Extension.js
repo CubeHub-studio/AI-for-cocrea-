@@ -2,42 +2,32 @@
 (function (Scratch) {
     'use strict';
 
-    /*
-     * COCREA AI Extension
-     * Adds:
-     *  - set API key to [ ]
-     *  - set API URL to [ ]
-     *  - set AI model to [ ]
-     *  - set system prompt to [ ]
-     *  - ask AI [ ]
-     *  - AI response
-     *  - AI is thinking?
-     *  - clear AI conversation
-     */
-
-    class COCREAAI {
+    class GroqAI {
         constructor() {
-            // Configuration
+            // Groq configuration
             this.apiKey = '';
-            this.apiUrl = 'https://api.openai.com/v1/chat/completions';
-            this.model = 'gpt-4o-mini';
+            this.apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+            this.model = 'llama-3.3-70b-versatile';
             this.systemPrompt = 'You are a helpful AI assistant.';
 
             // Conversation history
             this.conversation = [];
 
-            // State
+            // Latest AI response
             this.response = '';
+
+            // AI thinking state
             this.thinking = false;
         }
 
         getInfo() {
             return {
-                id: 'cocreaai',
-                name: 'AI Chat',
-                color1: '#6366f1',
-                color2: '#4f46e5',
-                color3: '#4338ca',
+                id: 'groqai',
+                name: 'Groq AI',
+
+                color1: '#f55036',
+                color2: '#e63f27',
+                color3: '#c92f1d',
 
                 blocks: [
                     {
@@ -60,7 +50,7 @@
                             URL: {
                                 type: Scratch.ArgumentType.STRING,
                                 defaultValue:
-                                    'https://api.openai.com/v1/chat/completions'
+                                    'https://api.groq.com/openai/v1/chat/completions'
                             }
                         }
                     },
@@ -72,7 +62,8 @@
                         arguments: {
                             MODEL: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'gpt-4o-mini'
+                                defaultValue:
+                                    'llama-3.3-70b-versatile'
                             }
                         }
                     },
@@ -102,12 +93,14 @@
                         }
                     },
 
+                    // Reporter block that outputs the latest AI response
                     {
                         opcode: 'getResponse',
                         blockType: Scratch.BlockType.REPORTER,
                         text: 'AI response'
                     },
 
+                    // Boolean block that reports whether AI is currently responding
                     {
                         opcode: 'isThinking',
                         blockType: Scratch.BlockType.BOOLEAN,
@@ -123,22 +116,27 @@
             };
         }
 
+        // Set Groq API key
         setApiKey(args) {
             this.apiKey = String(args.KEY);
         }
 
+        // Set API URL
         setApiUrl(args) {
             this.apiUrl = String(args.URL);
         }
 
+        // Set Groq model
         setModel(args) {
             this.model = String(args.MODEL);
         }
 
+        // Set system prompt
         setSystemPrompt(args) {
             this.systemPrompt = String(args.PROMPT);
         }
 
+        // Ask Groq AI
         async askAI(args) {
             const question = String(args.QUESTION);
 
@@ -148,7 +146,7 @@
             }
 
             if (!this.apiKey.trim()) {
-                this.response = 'Error: API key has not been set.';
+                this.response = 'Error: Groq API key has not been set.';
                 return;
             }
 
@@ -157,16 +155,20 @@
                 return;
             }
 
+            if (!this.model.trim()) {
+                this.response = 'Error: AI model has not been set.';
+                return;
+            }
+
             this.thinking = true;
 
-            try {
-                // Add the user's message to the conversation.
-                this.conversation.push({
-                    role: 'user',
-                    content: question
-                });
+            // Add the user's question to the conversation.
+            this.conversation.push({
+                role: 'user',
+                content: question
+            });
 
-                // Build messages.
+            try {
                 const messages = [
                     {
                         role: 'system',
@@ -175,89 +177,108 @@
                     ...this.conversation
                 ];
 
-                const response = await fetch(this.apiUrl, {
+                const result = await fetch(this.apiUrl, {
                     method: 'POST',
 
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.apiKey}`
+                        'Authorization': 'Bearer ' + this.apiKey
                     },
 
                     body: JSON.stringify({
                         model: this.model,
-                        messages: messages
+                        messages: messages,
+                        temperature: 0.7
                     })
                 });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
+                const data = await result.json().catch(() => null);
+
+                // Handle Groq API errors.
+                if (!result.ok) {
+                    let errorMessage = 'Unknown Groq API error.';
+
+                    if (data && data.error) {
+                        if (typeof data.error === 'string') {
+                            errorMessage = data.error;
+                        } else if (data.error.message) {
+                            errorMessage = data.error.message;
+                        }
+                    }
 
                     throw new Error(
-                        `HTTP ${response.status}: ${errorText}`
+                        'Groq API error (' +
+                        result.status +
+                        '): ' +
+                        errorMessage
                     );
                 }
 
-                const data = await response.json();
-
-                /*
-                 * Standard OpenAI-compatible response:
-                 *
-                 * choices[0].message.content
-                 */
-                let answer = '';
-
-                if (
+                // Get the latest response from Groq.
+                const answer =
                     data &&
                     data.choices &&
                     data.choices[0] &&
-                    data.choices[0].message
-                ) {
-                    answer = data.choices[0].message.content;
-                }
-
-                // Some APIs may return a plain response field.
-                if (!answer && typeof data.response === 'string') {
-                    answer = data.response;
-                }
+                    data.choices[0].message &&
+                    data.choices[0].message.content;
 
                 if (!answer) {
-                    answer = 'Error: The AI returned no response.';
+                    throw new Error(
+                        'Groq returned an empty response.'
+                    );
                 }
 
+                // Store the latest response.
                 this.response = String(answer);
 
-                // Save the assistant response for conversation memory.
+                // Save the AI response to conversation history.
                 this.conversation.push({
                     role: 'assistant',
                     content: this.response
                 });
 
             } catch (error) {
-                console.error('COCREA AI Extension Error:', error);
+                console.error(
+                    '[COCREA Groq AI]',
+                    error
+                );
 
+                // Remove the failed user message.
+                this.conversation.pop();
+
+                // Store the error as the latest response.
                 this.response =
-                    'Error: ' + (error.message || String(error));
+                    'Error: ' +
+                    (
+                        error && error.message
+                            ? error.message
+                            : String(error)
+                    );
 
             } finally {
                 this.thinking = false;
             }
         }
 
+        // Returns the latest AI response.
         getResponse() {
             return this.response;
         }
 
+        // Returns true while ask AI is waiting for Groq.
         isThinking() {
             return this.thinking;
         }
 
+        // Clears conversation and latest response.
         clearConversation() {
             this.conversation = [];
             this.response = '';
         }
     }
 
-    Scratch.extensions.register(new COCREAAI());
+    // Register the extension with Scratch/COCREA.
+    Scratch.extensions.register(new GroqAI());
 
 })(Scratch);
 ```

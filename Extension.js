@@ -280,4 +280,3 @@
     Scratch.extensions.register(new GroqAI());
 
 })(Scratch);
-```

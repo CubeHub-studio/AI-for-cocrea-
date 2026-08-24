@@ -1,4 +1,4 @@
-Copy link: https://github.com/CubeHub-studio/AI-for-cocrea-/Extension.js
+Copy link: https://cubehub-studio.github.io/AI-for-cocrea-/Extension.js
 open cocrea
 open your project (or make a new one)
 go to extensions

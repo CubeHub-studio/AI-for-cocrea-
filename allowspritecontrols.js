@@ -1,1218 +1,462 @@
+// AI Sprite Controller - complete replacement extension
 (function (Scratch) {
-    "use strict";
+    'use strict';
 
-    const {
-        BlockType,
-        ArgumentType,
-        TargetType
-    } = Scratch;
+    if (!Scratch.extensions.unsandboxed) {
+        throw new Error('AI Sprite Controller must run unsandboxed.');
+    }
 
     class AISpriteController {
-        constructor(runtime) {
-            this.runtime = runtime;
+        constructor() {
+            this.apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+            this.apiKey = '';
+            this.model = 'llama-3.3-70b-versatile';
+            this.systemPrompt = this.defaultSystemPrompt();
 
-            // Groq defaults
-            this.apiKey = "";
-            this.apiUrl =
-                "https://api.groq.com/openai/v1/chat/completions";
-            this.model = "openai/gpt-oss-20b";
+            this.lastResponse = '';
+            this.lastError = '';
+            this.busy = false;
+            this.history = [];
 
-            this.systemPrompt =
-                "You are an AI controlling a sprite in a Gandi/Scratch-compatible game. " +
-                "You must choose actions only from the VALID ACTIONS list provided to you. " +
-                "Return EXACTLY ONE valid JSON object and nothing else. " +
-                "Never use Markdown. Never invent an action. " +
-                "Use the sprite state and available costumes to make your decision.";
+            this.lastTarget = null;
 
-            this.lastResponse = "";
-            this.lastAction = "";
-            this.lastError = "";
+            this.functionContexts = new WeakMap();
+            this._lastFunctionContext = null;
+            this._lastFunctionName = '';
 
-            this.enabled = true;
-            this._thinking = false;
-            this._requestId = 0;
+            this.functionNames = [
+                'say',
+                'move',
+                'goto',
+                'turn',
+                'nextCostume'
+            ];
 
-            this.maxMove = 20;
-            this.maxTurn = 45;
+            this.runtime = Scratch.vm.runtime;
+        }
 
-            this._lastState = {};
+        defaultSystemPrompt() {
+            return [
+                'You control a Scratch/Gandi sprite.',
+                'Return ONLY valid JSON. Never use Markdown or code fences.',
+                '',
+                'Normal sprite actions:',
+                '{"action":"say","text":"Hello!"}',
+                '{"action":"move","steps":10}',
+                '{"action":"goto","x":0,"y":0}',
+                '{"action":"turn","degrees":15}',
+                '{"action":"change_x","amount":10}',
+                '{"action":"change_y","amount":10}',
+                '{"action":"set_x","x":0}',
+                '{"action":"set_y","y":0}',
+                '{"action":"set_direction","degrees":90}',
+                '{"action":"next_costume"}',
+                '{"action":"switch_costume","costume":"costume2"}',
+                '{"action":"change_size","amount":10}',
+                '{"action":"set_size","size":100}',
+                '{"action":"show"}',
+                '{"action":"hide"}',
+                '{"action":"wait","seconds":1}',
+                '',
+                'Function actions:',
+                '{"action":"function","name":"FUNCTION_NAME","arguments":["value1","value2"]}',
+                '',
+                'When the user asks you to trigger a custom Gandi function, use action=function.',
+                'The function name must be the exact function name requested.',
+                'Arguments are stored in order.',
+                'The Gandi function argument reporter is one-based.',
+                'The first argument is function argument 1.',
+                'The second argument is function argument 2.',
+                'The third argument is function argument 3.',
+                '',
+                'Examples:',
+                '{"action":"function","name":"jump","arguments":[50]}',
+                '{"action":"function","name":"dance","arguments":["fast",10]}',
+                '{"action":"function","name":"setMood","arguments":["happy"]}',
+                '',
+                'If a request cannot be performed, use:',
+                '{"action":"say","text":"I cannot do that."}'
+            ].join('\n');
         }
 
         getInfo() {
             return {
-                id: "aiSpriteController",
-                name: "AI Sprite Controller",
-
-                color1: "#7C3AED",
-                color2: "#5B21B6",
-                color3: "#4C1D95",
+                id: 'aispritecontroller',
+                name: 'AI Sprite Controller',
+                color1: '#10b981',
+                color2: '#059669',
+                color3: '#047857',
 
                 blocks: [
-
-                    "---- AI SETTINGS ----",
-
                     {
-                        opcode: "setApiKey",
-                        blockType: BlockType.COMMAND,
-                        text: "set AI API key to [KEY]",
+                        opcode: 'setApiKey',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'set API key to [KEY]',
                         arguments: {
                             KEY: {
-                                type: ArgumentType.STRING,
-                                defaultValue: ""
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'gsk_...'
                             }
                         }
                     },
 
                     {
-                        opcode: "setApiUrl",
-                        blockType: BlockType.COMMAND,
-                        text: "set AI API URL to [URL]",
+                        opcode: 'setApiUrl',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'set AI API URL to [URL]',
                         arguments: {
                             URL: {
-                                type: ArgumentType.STRING,
+                                type: Scratch.ArgumentType.STRING,
                                 defaultValue:
-                                    "https://api.groq.com/openai/v1/chat/completions"
+                                    'https://api.groq.com/openai/v1/chat/completions'
                             }
                         }
                     },
 
                     {
-                        opcode: "setModel",
-                        blockType: BlockType.COMMAND,
-                        text: "set AI model to [MODEL]",
+                        opcode: 'setModel',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'set AI model to [MODEL]',
                         arguments: {
                             MODEL: {
-                                type: ArgumentType.STRING,
-                                defaultValue:
-                                    "openai/gpt-oss-20b"
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'llama-3.3-70b-versatile'
                             }
                         }
                     },
 
                     {
-                        opcode: "setSystemPrompt",
-                        blockType: BlockType.COMMAND,
-                        text: "set AI instructions to [PROMPT]",
+                        opcode: 'setPrompt',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'set AI system prompt to [PROMPT]',
                         arguments: {
                             PROMPT: {
-                                type: ArgumentType.STRING,
+                                type: Scratch.ArgumentType.STRING,
                                 defaultValue:
-                                    "Control the sprite intelligently."
+                                    'You control a Scratch/Gandi sprite. Return only JSON.'
                             }
                         }
                     },
 
                     {
-                        opcode: "setMaxMove",
-                        blockType: BlockType.COMMAND,
-                        text: "set maximum AI movement to [AMOUNT]",
+                        opcode: 'ask',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'ask AI [MESSAGE]',
                         arguments: {
-                            AMOUNT: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 20
+                            MESSAGE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Say hello.'
                             }
                         }
                     },
 
                     {
-                        opcode: "setMaxTurn",
-                        blockType: BlockType.COMMAND,
-                        text: "set maximum AI turn to [DEGREES]",
+                        opcode: 'response',
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: 'AI response'
+                    },
+
+                    {
+                        opcode: 'isThinking',
+                        blockType: Scratch.BlockType.BOOLEAN,
+                        text: 'AI is thinking?'
+                    },
+
+                    {
+                        opcode: 'clearChat',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'clear AI conversation'
+                    },
+
+                    {
+                        opcode: 'lastFunction',
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: 'last function received'
+                    },
+
+                    {
+                        opcode: 'whenFunctionReceived',
+                        blockType: Scratch.BlockType.HAT,
+                        text: 'when function received [FUNCTION]',
+                        isEdgeActivated: false,
+                        shouldRestartExistingThreads: true,
                         arguments: {
-                            DEGREES: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 45
+                            FUNCTION: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'functionMenu'
                             }
                         }
                     },
 
                     {
-                        opcode: "enableAI",
-                        blockType: BlockType.COMMAND,
-                        text: "enable AI control"
-                    },
-
-                    {
-                        opcode: "disableAI",
-                        blockType: BlockType.COMMAND,
-                        text: "disable AI control"
-                    },
-
-                    "---- AI CONTROL ----",
-
-                    {
-                        opcode: "askAI",
-                        blockType: BlockType.COMMAND,
-                        text: "ask AI to control this sprite"
-                    },
-
-                    {
-                        opcode: "askAIAbout",
-                        blockType: BlockType.COMMAND,
-                        text: "ask AI to [GOAL]",
+                        opcode: 'functionArgument',
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: 'function argument [INDEX]',
                         arguments: {
-                            GOAL: {
-                                type: ArgumentType.STRING,
-                                defaultValue:
-                                    "decide what to do"
+                            INDEX: {
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 1
                             }
                         }
                     },
 
                     {
-                        opcode: "askAIWithState",
-                        blockType: BlockType.COMMAND,
-                        text: "ask AI with state [STATE]",
+                        opcode: 'functionArgumentElse',
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: 'function argument [INDEX] else [FALLBACK]',
                         arguments: {
-                            STATE: {
-                                type: ArgumentType.STRING,
-                                defaultValue: "{}"
-                            }
-                        }
-                    },
-
-                    {
-                        opcode: "stopAI",
-                        blockType: BlockType.COMMAND,
-                        text: "stop AI"
-                    },
-
-                    "---- SPRITE STATE ----",
-
-                    {
-                        opcode: "spriteState",
-                        blockType: BlockType.REPORTER,
-                        text: "AI sprite state"
-                    },
-
-                    {
-                        opcode: "spriteX",
-                        blockType: BlockType.REPORTER,
-                        text: "AI sprite X"
-                    },
-
-                    {
-                        opcode: "spriteY",
-                        blockType: BlockType.REPORTER,
-                        text: "AI sprite Y"
-                    },
-
-                    {
-                        opcode: "spriteDirection",
-                        blockType: BlockType.REPORTER,
-                        text: "AI sprite direction"
-                    },
-
-                    {
-                        opcode: "spriteSize",
-                        blockType: BlockType.REPORTER,
-                        text: "AI sprite size"
-                    },
-
-                    {
-                        opcode: "spriteVisible",
-                        blockType: BlockType.BOOLEAN,
-                        text: "AI sprite visible?"
-                    },
-
-                    {
-                        opcode: "costumeList",
-                        blockType: BlockType.REPORTER,
-                        text: "AI costume list"
-                    },
-
-                    {
-                        opcode: "currentCostume",
-                        blockType: BlockType.REPORTER,
-                        text: "AI current costume"
-                    },
-
-                    "---- AI RESULTS ----",
-
-                    {
-                        opcode: "lastAIResponse",
-                        blockType: BlockType.REPORTER,
-                        text: "AI response"
-                    },
-
-                    {
-                        opcode: "lastAIAction",
-                        blockType: BlockType.REPORTER,
-                        text: "AI action JSON"
-                    },
-
-                    {
-                        opcode: "lastAIError",
-                        blockType: BlockType.REPORTER,
-                        text: "AI error"
-                    },
-
-                    {
-                        opcode: "aiThinking",
-                        blockType: BlockType.BOOLEAN,
-                        text: "AI is thinking?"
-                    },
-
-                    {
-                        opcode: "aiEnabled",
-                        blockType: BlockType.BOOLEAN,
-                        text: "AI enabled?"
-                    },
-
-                    "---- DIRECT SPRITE ACTIONS ----",
-
-                    {
-                        opcode: "aiMove",
-                        blockType: BlockType.COMMAND,
-                        text: "AI move [AMOUNT] steps",
-                        arguments: {
-                            AMOUNT: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 10
-                            }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiTurn",
-                        blockType: BlockType.COMMAND,
-                        text: "AI turn [DEGREES] degrees",
-                        arguments: {
-                            DEGREES: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 15
-                            }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiPoint",
-                        blockType: BlockType.COMMAND,
-                        text: "AI point in direction [DIRECTION]",
-                        arguments: {
-                            DIRECTION: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 90
-                            }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiGoTo",
-                        blockType: BlockType.COMMAND,
-                        text: "AI go to x [X] y [Y]",
-                        arguments: {
-                            X: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 0
+                            INDEX: {
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 1
                             },
-                            Y: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 0
+                            FALLBACK: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: ''
                             }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiChangeX",
-                        blockType: BlockType.COMMAND,
-                        text: "AI change X by [AMOUNT]",
-                        arguments: {
-                            AMOUNT: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 10
-                            }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiChangeY",
-                        blockType: BlockType.COMMAND,
-                        text: "AI change Y by [AMOUNT]",
-                        arguments: {
-                            AMOUNT: {
-                                type: ArgumentType.NUMBER,
-                                defaultValue: 10
-                            }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiNextCostume",
-                        blockType: BlockType.COMMAND,
-                        text: "AI next costume",
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiPreviousCostume",
-                        blockType: BlockType.COMMAND,
-                        text: "AI previous costume",
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiCostume",
-                        blockType: BlockType.COMMAND,
-                        text: "AI switch to costume [COSTUME]",
-                        arguments: {
-                            COSTUME: {
-                                type: ArgumentType.STRING,
-                                defaultValue: "1"
-                            }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiSay",
-                        blockType: BlockType.COMMAND,
-                        text: "AI say [TEXT]",
-                        arguments: {
-                            TEXT: {
-                                type: ArgumentType.STRING,
-                                defaultValue: "Hello!"
-                            }
-                        },
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiHide",
-                        blockType: BlockType.COMMAND,
-                        text: "AI hide sprite",
-                        filter: [TargetType.SPRITE]
-                    },
-
-                    {
-                        opcode: "aiShow",
-                        blockType: BlockType.COMMAND,
-                        text: "AI show sprite",
-                        filter: [TargetType.SPRITE]
+                        }
                     }
-                ]
+                ],
+
+                menus: {
+                    functionMenu: {
+                        acceptReporters: false,
+                        items: 'getFunctionMenu'
+                    }
+                }
             };
+        }
+
+        getFunctionMenu() {
+            const names = Array.from(new Set(this.functionNames));
+
+            if (names.length === 0) {
+                return [
+                    {
+                        text: 'function',
+                        value: 'function'
+                    }
+                ];
+            }
+
+            return names.map(name => ({
+                text: name,
+                value: name
+            }));
         }
 
         setApiKey(args) {
-            this.apiKey = String(args.KEY || "").trim();
+            this.apiKey = String(args.KEY || '').trim();
         }
 
         setApiUrl(args) {
-            this.apiUrl = String(args.URL || "").trim();
+            this.apiUrl = String(args.URL || '').trim();
         }
 
         setModel(args) {
-            this.model = String(args.MODEL || "").trim();
+            this.model = String(args.MODEL || '').trim();
         }
 
-        setSystemPrompt(args) {
-            this.systemPrompt = String(args.PROMPT || "");
+        setPrompt(args) {
+            this.systemPrompt = String(args.PROMPT || '');
         }
 
-        setMaxMove(args) {
-            let value = Number(args.AMOUNT);
-
-            if (!Number.isFinite(value)) {
-                value = 20;
-            }
-
-            this.maxMove =
-                Math.max(
-                    0,
-                    Math.min(100, Math.abs(value))
-                );
+        isThinking() {
+            return this.busy;
         }
 
-        setMaxTurn(args) {
-            let value = Number(args.DEGREES);
-
-            if (!Number.isFinite(value)) {
-                value = 45;
-            }
-
-            this.maxTurn =
-                Math.max(
-                    0,
-                    Math.min(360, Math.abs(value))
-                );
+        response() {
+            return this.lastResponse;
         }
 
-        enableAI() {
-            this.enabled = true;
-            this.lastError = "";
+        lastFunction() {
+            return this._lastFunctionName || '';
         }
 
-        disableAI() {
-            this.enabled = false;
+        clearChat() {
+            this.history = [];
+            this.lastResponse = '';
+            this.lastError = '';
+            this._lastFunctionName = '';
+            this._lastFunctionContext = null;
         }
 
-        stopAI() {
-            this.enabled = false;
-            this._requestId++;
-            this._thinking = false;
-        }
-
-        aiEnabled() {
-            return this.enabled;
-        }
-
-        aiThinking() {
-            return this._thinking;
-        }
-
-        _getTarget(args, util) {
-            if (util && util.target) {
-                return util.target;
-            }
-
-            if (
-                this.runtime &&
-                typeof this.runtime.getEditingTarget === "function"
-            ) {
-                return this.runtime.getEditingTarget();
-            }
-
-            return null;
-        }
-
-        _getCostumes(target) {
-            if (!target) {
-                return [];
-            }
-
-            let costumes = [];
-
-            /*
-             * Scratch/Gandi targets normally expose costumes
-             * through target.sprite.costumes.
-             */
-            if (
-                target.sprite &&
-                Array.isArray(target.sprite.costumes)
-            ) {
-                costumes = target.sprite.costumes;
-            } else if (
-                Array.isArray(target.costumes)
-            ) {
-                costumes = target.costumes;
-            }
-
-            return costumes.map((costume, index) => {
-                return {
-                    number: index + 1,
-                    name:
-                        costume && costume.name
-                            ? String(costume.name)
-                            : "Costume " + (index + 1)
-                };
-            });
-        }
-
-        _getCurrentCostume(target) {
-            if (!target) {
-                return 0;
-            }
-
-            if (
-                typeof target.currentCostume === "number"
-            ) {
-                return target.currentCostume + 1;
-            }
-
-            return 1;
-        }
-
-        _getSpriteState(target) {
-            if (!target) {
-                return {
-                    exists: false,
-                    error: "No sprite target is available."
-                };
-            }
-
-            const costumes =
-                this._getCostumes(target);
-
-            const state = {
-                exists: true,
-
-                name:
-                    typeof target.getName === "function"
-                        ? target.getName()
-                        : "Sprite",
-
-                x:
-                    Number(target.x) || 0,
-
-                y:
-                    Number(target.y) || 0,
-
-                direction:
-                    Number(target.direction) || 90,
-
-                size:
-                    Number(target.size) || 100,
-
-                visible:
-                    target.visible !== false,
-
-                draggable:
-                    !!target.draggable,
-
-                rotationStyle:
-                    target.rotationStyle ||
-                    "all around",
-
-                currentCostume:
-                    this._getCurrentCostume(target),
-
-                currentCostumeName:
-                    this._getCurrentCostumeName(target),
-
-                costumes: costumes
-            };
-
-            this._lastState = state;
-
-            return state;
-        }
-
-        _getCurrentCostumeName(target) {
-            const costumes =
-                this._getCostumes(target);
-
-            const current =
-                this._getCurrentCostume(target);
-
-            if (
-                costumes.length &&
-                costumes[current - 1]
-            ) {
-                return costumes[current - 1].name;
-            }
-
-            return "";
-        }
-
-        spriteState(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return JSON.stringify(
-                this._getSpriteState(target)
-            );
-        }
-
-        spriteX(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return target
-                ? Number(target.x) || 0
-                : 0;
-        }
-
-        spriteY(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return target
-                ? Number(target.y) || 0
-                : 0;
-        }
-
-        spriteDirection(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return target
-                ? Number(target.direction) || 90
-                : 90;
-        }
-
-        spriteSize(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return target
-                ? Number(target.size) || 100
-                : 100;
-        }
-
-        spriteVisible(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return !!(
-                target &&
-                target.visible !== false
-            );
-        }
-
-        costumeList(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return JSON.stringify(
-                this._getCostumes(target)
-            );
-        }
-
-        currentCostume(args, util) {
-            const target =
-                this._getTarget(args, util);
-
-            return this._getCurrentCostume(target);
-        }
-
-        async askAI(args, util) {
-            return this._askAIInternal(
-                util,
-                "Decide what this sprite should do next."
-            );
-        }
-
-        async askAIAbout(args, util) {
-            return this._askAIInternal(
-                util,
-                String(args.GOAL || "Decide what to do.")
-            );
-        }
-
-        async askAIWithState(args, util) {
-            let state;
-
-            try {
-                state =
-                    JSON.parse(
-                        String(args.STATE || "{}")
-                    );
-            } catch (error) {
-                this.lastError =
-                    "Invalid state JSON.";
-                return;
-            }
-
-            return this._askAIInternal(
-                util,
-                "Decide what the sprite should do using this state.",
-                state
-            );
-        }
-
-        async _askAIInternal(
-            util,
-            goal,
-            customState = null
-        ) {
-            if (!this.enabled) {
-                this.lastError =
-                    "AI control is disabled.";
-                return;
-            }
-
-            if (this._thinking) {
-                this.lastError =
-                    "AI is already thinking.";
+        async ask(args, util) {
+            if (this.busy) {
                 return;
             }
 
             if (!this.apiKey) {
-                this.lastError =
-                    "No AI API key has been configured.";
+                this.lastError = 'Set an API key first.';
+                this.lastResponse = 'Error: ' + this.lastError;
                 return;
             }
 
-            if (!this.apiUrl) {
-                this.lastError =
-                    "No AI API URL has been configured.";
-                return;
+            const message = String(args.MESSAGE ?? '');
+
+            this.busy = true;
+            this.lastError = '';
+
+            if (util && util.target) {
+                this.lastTarget = util.target;
             }
-
-            const target =
-                this._getTarget({}, util);
-
-            if (!target) {
-                this.lastError =
-                    "No sprite target is available.";
-                return;
-            }
-
-            const state =
-                customState ||
-                this._getSpriteState(target);
-
-            const requestId =
-                ++this._requestId;
-
-            this._thinking = true;
-            this.lastError = "";
-
-            /*
-             * THIS IS THE AI'S COMPLETE COMMAND LIST.
-             *
-             * The AI is explicitly told that it may ONLY
-             * use these commands.
-             */
-            const validCommands = {
-                move: {
-                    description:
-                        "Move forward in the sprite's current direction.",
-                    parameters: {
-                        amount:
-                            "Number of steps. Positive = forward, negative = backward."
-                    },
-                    example: {
-                        action: "move",
-                        amount: 10
-                    }
-                },
-
-                turn: {
-                    description:
-                        "Turn the sprite relative to its current direction.",
-                    parameters: {
-                        degrees:
-                            "Degrees to turn. Positive = clockwise, negative = counterclockwise."
-                    },
-                    example: {
-                        action: "turn",
-                        degrees: 15
-                    }
-                },
-
-                point: {
-                    description:
-                        "Set the sprite's direction.",
-                    parameters: {
-                        direction:
-                            "Direction in degrees."
-                    },
-                    example: {
-                        action: "point",
-                        direction: 90
-                    }
-                },
-
-                goto: {
-                    description:
-                        "Move the sprite directly to an X/Y coordinate.",
-                    parameters: {
-                        x:
-                            "X coordinate.",
-                        y:
-                            "Y coordinate."
-                    },
-                    example: {
-                        action: "goto",
-                        x: 100,
-                        y: 50
-                    }
-                },
-
-                changex: {
-                    description:
-                        "Change the sprite's X position.",
-                    parameters: {
-                        amount:
-                            "Amount to change X by."
-                    },
-                    example: {
-                        action: "changex",
-                        amount: 10
-                    }
-                },
-
-                changey: {
-                    description:
-                        "Change the sprite's Y position.",
-                    parameters: {
-                        amount:
-                            "Amount to change Y by."
-                    },
-                    example: {
-                        action: "changey",
-                        amount: 10
-                    }
-                },
-
-                costume: {
-                    description:
-                        "Switch to a specific costume by name or number.",
-                    parameters: {
-                        costume:
-                            "Costume name or costume number."
-                    },
-                    example: {
-                        action: "costume",
-                        costume: "run"
-                    }
-                },
-
-                nextcostume: {
-                    description:
-                        "Switch to the next costume.",
-                    parameters: {},
-                    example: {
-                        action: "nextcostume"
-                    }
-                },
-
-                prevcostume: {
-                    description:
-                        "Switch to the previous costume.",
-                    parameters: {},
-                    example: {
-                        action: "prevcostume"
-                    }
-                },
-
-                say: {
-                    description:
-                        "Make the sprite say text. The Gandi project can read the text value from the returned JSON.",
-                    parameters: {
-                        text:
-                            "Text the sprite should say."
-                    },
-                    example: {
-                        action: "say",
-                        text: "Hello!"
-                    }
-                },
-
-                hide: {
-                    description:
-                        "Hide the sprite.",
-                    parameters: {},
-                    example: {
-                        action: "hide"
-                    }
-                },
-
-                show: {
-                    description:
-                        "Show the sprite.",
-                    parameters: {},
-                    example: {
-                        action: "show"
-                    }
-                },
-
-                wait: {
-                    description:
-                        "Do nothing this decision.",
-                    parameters: {},
-                    example: {
-                        action: "wait"
-                    }
-                }
-            };
-
-            const userPrompt =
-                "GOAL:\n" +
-                goal +
-                "\n\n" +
-
-                "CURRENT SPRITE STATE:\n" +
-                JSON.stringify(
-                    state,
-                    null,
-                    2
-                ) +
-                "\n\n" +
-
-                "VALID COMMANDS:\n" +
-                JSON.stringify(
-                    validCommands,
-                    null,
-                    2
-                ) +
-                "\n\n" +
-
-                "MOVEMENT LIMIT:\n" +
-                this.maxMove +
-                "\n\n" +
-
-                "TURN LIMIT:\n" +
-                this.maxTurn +
-                "\n\n" +
-
-                "STRICT JSON RULES:\n" +
-                "1. Return exactly ONE JSON object.\n" +
-                "2. The JSON object MUST contain an 'action' property.\n" +
-                "3. The action MUST be one of: " +
-                Object.keys(validCommands).join(", ") +
-                ".\n" +
-                "4. Never invent an action.\n" +
-                "5. Do not return Markdown.\n" +
-                "6. Do not explain your answer.\n" +
-                "7. For costume, use a costume name or number from the supplied costume list.\n" +
-                "8. For nextcostume, do not include parameters.\n" +
-                "9. For prevcostume, do not include parameters.\n" +
-                "10. For say, put the speech in the 'text' property.\n\n" +
-
-                "RETURN ONLY JSON.";
 
             try {
-                const response =
-                    await fetch(
-                        this.apiUrl,
-                        {
-                            method: "POST",
+                const messages = [
+                    {
+                        role: 'system',
+                        content: this.systemPrompt
+                    },
+                    ...this.history,
+                    {
+                        role: 'user',
+                        content: message
+                    }
+                ];
 
-                            headers: {
-                                "Content-Type":
-                                    "application/json",
+                const response = await Scratch.fetch(this.apiUrl, {
+                    method: 'POST',
 
-                                "Authorization":
-                                    "Bearer " +
-                                    this.apiKey
-                            },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + this.apiKey
+                    },
 
-                            body: JSON.stringify({
-                                model:
-                                    this.model,
-
-                                messages: [
-                                    {
-                                        role:
-                                            "system",
-
-                                        content:
-                                            this.systemPrompt
-                                    },
-
-                                    {
-                                        role:
-                                            "user",
-
-                                        content:
-                                            userPrompt
-                                    }
-                                ],
-
-                                temperature:
-                                    0.2,
-
-                                max_tokens:
-                                    250
-                            })
-                        }
-                    );
-
-                if (
-                    requestId !==
-                    this._requestId
-                ) {
-                    return;
-                }
+                    body: JSON.stringify({
+                        model: this.model,
+                        messages: messages,
+                        temperature: 0.2
+                    })
+                });
 
                 if (!response.ok) {
-                    const errorText =
-                        await response.text();
+                    const errorText = await response.text();
 
                     throw new Error(
-                        "HTTP " +
+                        'HTTP ' +
                         response.status +
-                        ": " +
-                        errorText
+                        ': ' +
+                        errorText.slice(0, 500)
                     );
                 }
 
-                const data =
-                    await response.json();
+                const data = await response.json();
 
-                const content =
-                    this._extractAIText(data);
+                const answer = String(
+                    data?.choices?.[0]?.message?.content ??
+                    data?.choices?.[0]?.text ??
+                    ''
+                ).trim();
 
-                this.lastResponse =
-                    content || "";
-
-                if (!content) {
-                    throw new Error(
-                        "AI returned an empty response."
-                    );
+                if (!answer) {
+                    throw new Error('The API returned no text.');
                 }
 
-                const action =
-                    this._parseAction(content);
+                this.lastResponse = answer;
 
-                if (!action) {
-                    throw new Error(
-                        "AI did not return valid JSON."
-                    );
+                this.history.push(
+                    {
+                        role: 'user',
+                        content: message
+                    },
+                    {
+                        role: 'assistant',
+                        content: answer
+                    }
+                );
+
+                if (this.history.length > 20) {
+                    this.history = this.history.slice(-20);
                 }
 
-                if (
-                    !this._isValidAction(action)
-                ) {
-                    throw new Error(
-                        "AI returned an invalid command: " +
-                        String(action.action)
-                    );
-                }
+                const command = this.parseAICommand(answer);
 
-                this.lastAction =
-                    JSON.stringify(action);
-
-                /*
-                 * We intentionally do NOT directly execute
-                 * "say". Your Gandi script can read the
-                 * returned JSON "text" value.
-                 */
-                if (
-                    action.action === "say"
-                ) {
-                    return;
-                }
-
-                if (this.enabled) {
-                    this._executeAction(
-                        action,
-                        target
+                if (command) {
+                    await this.executeCommand(
+                        command,
+                        this.lastTarget
                     );
                 }
             } catch (error) {
                 this.lastError =
-                    error &&
-                    error.message
-                        ? error.message
-                        : String(error);
+                    error?.message ||
+                    String(error);
+
+                this.lastResponse =
+                    'AI error: ' +
+                    this.lastError;
             } finally {
-                if (
-                    requestId ===
-                    this._requestId
-                ) {
-                    this._thinking = false;
-                }
+                this.busy = false;
             }
         }
 
-        _isValidAction(action) {
-            if (!action) {
-                return false;
-            }
+        parseAICommand(text) {
+            let cleaned = String(text || '').trim();
 
-            const valid = [
-                "move",
-                "turn",
-                "point",
-                "goto",
-                "changex",
-                "changey",
-                "costume",
-                "nextcostume",
-                "prevcostume",
-                "say",
-                "hide",
-                "show",
-                "wait"
-            ];
-
-            return valid.includes(
-                String(
-                    action.action || ""
-                ).toLowerCase()
-            );
-        }
-
-        _extractAIText(data) {
-            if (!data) {
-                return "";
-            }
-
-            if (
-                data.choices &&
-                data.choices[0] &&
-                data.choices[0].message
-            ) {
-                const message =
-                    data.choices[0].message;
-
-                if (
-                    typeof message.content ===
-                    "string"
-                ) {
-                    return message.content.trim();
-                }
-
-                if (
-                    Array.isArray(
-                        message.content
-                    )
-                ) {
-                    return message.content
-                        .map(part => {
-                            return part &&
-                                typeof part.text ===
-                                "string"
-                                ? part.text
-                                : "";
-                        })
-                        .join("")
-                        .trim();
-                }
-            }
-
-            if (
-                typeof data.output_text ===
-                "string"
-            ) {
-                return data.output_text.trim();
-            }
-
-            return "";
-        }
-
-        _parseAction(text) {
-            let cleaned =
-                String(text)
-                    .trim()
-                    .replace(
-                        /^```json/i,
-                        ""
-                    )
-                    .replace(
-                        /^```/i,
-                        ""
-                    )
-                    .replace(
-                        /```$/i,
-                        ""
-                    )
-                    .trim();
+            cleaned = cleaned
+                .replace(/^```(?:json)?\s*/i, '')
+                .replace(/\s*```$/i, '')
+                .trim();
 
             try {
-                return JSON.parse(
-                    cleaned
+                const value = JSON.parse(cleaned);
+
+                return this.normalizeCommand(value);
+            } catch (_) {
+            }
+
+            const object = this.extractJSONObject(cleaned);
+
+            if (!object) {
+                return null;
+            }
+
+            try {
+                return this.normalizeCommand(
+                    JSON.parse(object)
                 );
-            } catch (error) {
-                const firstBrace =
-                    cleaned.indexOf("{");
+            } catch (_) {
+                return null;
+            }
+        }
 
-                const lastBrace =
-                    cleaned.lastIndexOf("}");
+        extractJSONObject(text) {
+            const start = text.indexOf('{');
 
-                if (
-                    firstBrace >= 0 &&
-                    lastBrace > firstBrace
-                ) {
-                    try {
-                        return JSON.parse(
-                            cleaned.substring(
-                                firstBrace,
-                                lastBrace + 1
-                            )
+            if (start < 0) {
+                return null;
+            }
+
+            let depth = 0;
+            let inString = false;
+            let escaped = false;
+
+            for (let i = start; i < text.length; i++) {
+                const ch = text[i];
+
+                if (inString) {
+                    if (escaped) {
+                        escaped = false;
+                    } else if (ch === '\\') {
+                        escaped = true;
+                    } else if (ch === '"') {
+                        inString = false;
+                    }
+
+                    continue;
+                }
+
+                if (ch === '"') {
+                    inString = true;
+                } else if (ch === '{') {
+                    depth++;
+                } else if (ch === '}') {
+                    depth--;
+
+                    if (depth === 0) {
+                        return text.slice(
+                            start,
+                            i + 1
                         );
-                    } catch (ignored) {
-                        return null;
                     }
                 }
             }
@@ -1220,792 +464,561 @@
             return null;
         }
 
-        _executeAction(action, target) {
-            if (!action || !target) {
-                return;
-            }
-
-            const name =
-                String(
-                    action.action || ""
-                )
-                    .trim()
-                    .toLowerCase();
-
-            switch (name) {
-
-                case "move": {
-                    let amount =
-                        Number(
-                            action.amount
-                        );
-
-                    if (
-                        !Number.isFinite(amount)
-                    ) {
-                        amount = 0;
-                    }
-
-                    amount =
-                        Math.max(
-                            -this.maxMove,
-                            Math.min(
-                                this.maxMove,
-                                amount
-                            )
-                        );
-
-                    this._moveSprite(
-                        target,
-                        amount
-                    );
-
-                    break;
-                }
-
-                case "turn": {
-                    let degrees =
-                        Number(
-                            action.degrees
-                        );
-
-                    if (
-                        !Number.isFinite(degrees)
-                    ) {
-                        degrees = 0;
-                    }
-
-                    degrees =
-                        Math.max(
-                            -this.maxTurn,
-                            Math.min(
-                                this.maxTurn,
-                                degrees
-                            )
-                        );
-
-                    this._turnSprite(
-                        target,
-                        degrees
-                    );
-
-                    break;
-                }
-
-                case "point": {
-                    let direction =
-                        Number(
-                            action.direction
-                        );
-
-                    if (
-                        !Number.isFinite(direction)
-                    ) {
-                        direction = 90;
-                    }
-
-                    this._pointSprite(
-                        target,
-                        direction
-                    );
-
-                    break;
-                }
-
-                case "goto": {
-                    let x =
-                        Number(action.x);
-
-                    let y =
-                        Number(action.y);
-
-                    if (
-                        !Number.isFinite(x)
-                    ) {
-                        x =
-                            Number(target.x) ||
-                            0;
-                    }
-
-                    if (
-                        !Number.isFinite(y)
-                    ) {
-                        y =
-                            Number(target.y) ||
-                            0;
-                    }
-
-                    x =
-                        Math.max(
-                            -240,
-                            Math.min(
-                                240,
-                                x
-                            )
-                        );
-
-                    y =
-                        Math.max(
-                            -180,
-                            Math.min(
-                                180,
-                                y
-                            )
-                        );
-
-                    this._gotoSprite(
-                        target,
-                        x,
-                        y
-                    );
-
-                    break;
-                }
-
-                case "changex": {
-                    let amount =
-                        Number(
-                            action.amount
-                        );
-
-                    if (
-                        !Number.isFinite(amount)
-                    ) {
-                        amount = 0;
-                    }
-
-                    amount =
-                        Math.max(
-                            -this.maxMove,
-                            Math.min(
-                                this.maxMove,
-                                amount
-                            )
-                        );
-
-                    this._changeX(
-                        target,
-                        amount
-                    );
-
-                    break;
-                }
-
-                case "changey": {
-                    let amount =
-                        Number(
-                            action.amount
-                        );
-
-                    if (
-                        !Number.isFinite(amount)
-                    ) {
-                        amount = 0;
-                    }
-
-                    amount =
-                        Math.max(
-                            -this.maxMove,
-                            Math.min(
-                                this.maxMove,
-                                amount
-                            )
-                        );
-
-                    this._changeY(
-                        target,
-                        amount
-                    );
-
-                    break;
-                }
-
-                case "costume": {
-                    this._setCostume(
-                        target,
-                        action.costume
-                    );
-
-                    break;
-                }
-
-                case "nextcostume": {
-                    this._nextCostume(
-                        target
-                    );
-
-                    break;
-                }
-
-                case "prevcostume": {
-                    this._previousCostume(
-                        target
-                    );
-
-                    break;
-                }
-
-                case "say": {
-                    /*
-                     * Deliberately handled by the Gandi
-                     * project instead.
-                     */
-                    break;
-                }
-
-                case "hide": {
-                    this._hide(
-                        target
-                    );
-
-                    break;
-                }
-
-                case "show": {
-                    this._show(
-                        target
-                    );
-
-                    break;
-                }
-
-                case "wait": {
-                    break;
-                }
-            }
-        }
-
-        _moveSprite(target, amount) {
-            const direction =
-                Number(
-                    target.direction
-                ) || 90;
-
-            const radians =
-                direction *
-                Math.PI /
-                180;
-
-            const dx =
-                Math.sin(radians) *
-                amount;
-
-            const dy =
-                Math.cos(radians) *
-                amount;
-
-            this._setXY(
-                target,
-                (Number(target.x) || 0) + dx,
-                (Number(target.y) || 0) + dy
-            );
-        }
-
-        _turnSprite(target, degrees) {
-            this._setDirection(
-                target,
-                (Number(target.direction) || 90) +
-                degrees
-            );
-        }
-
-        _pointSprite(target, direction) {
-            this._setDirection(
-                target,
-                direction
-            );
-        }
-
-        _setDirection(target, direction) {
+        normalizeCommand(command) {
             if (
-                typeof target.setDirection ===
-                "function"
+                !command ||
+                typeof command !== 'object'
             ) {
-                target.setDirection(
-                    direction
-                );
-            } else {
-                target.direction =
-                    direction;
-            }
-        }
-
-        _setXY(target, x, y) {
-            if (
-                typeof target.setXY ===
-                "function"
-            ) {
-                target.setXY(
-                    x,
-                    y
-                );
-            } else {
-                target.x = x;
-                target.y = y;
-            }
-        }
-
-        _gotoSprite(target, x, y) {
-            this._setXY(
-                target,
-                x,
-                y
-            );
-        }
-
-        _changeX(target, amount) {
-            this._setXY(
-                target,
-                (Number(target.x) || 0) +
-                    amount,
-                Number(target.y) || 0
-            );
-        }
-
-        _changeY(target, amount) {
-            this._setXY(
-                target,
-                Number(target.x) || 0,
-                (Number(target.y) || 0) +
-                    amount
-            );
-        }
-
-        _setCostume(target, value) {
-            const costumes =
-                this._getCostumes(target);
-
-            if (!costumes.length) {
-                this.lastError =
-                    "This sprite has no costumes.";
-                return;
+                return null;
             }
 
-            const stringValue =
-                String(
-                    value === undefined ||
-                    value === null
-                        ? ""
-                        : value
+            const action =
+                String(command.action || '').trim();
+
+            if (!action) {
+                return null;
+            }
+
+            if (action === 'function') {
+                const name = String(
+                    command.name ??
+                    command.function ??
+                    ''
                 ).trim();
 
-            if (!stringValue) {
+                let args = command.arguments;
+
+                if (!Array.isArray(args)) {
+                    args = [];
+                }
+
+                if (!name) {
+                    return null;
+                }
+
+                this.registerFunction(name);
+
+                return {
+                    action: 'function',
+                    name: name,
+                    arguments: args
+                };
+            }
+
+            return {
+                ...command,
+                action: action
+            };
+        }
+
+        registerFunction(name) {
+            name = String(name || '').trim();
+
+            if (!name) {
                 return;
             }
+
+            if (!this.functionNames.includes(name)) {
+                this.functionNames.push(name);
+            }
+        }
+
+        async executeCommand(command, target) {
+            if (
+                !command ||
+                !command.action
+            ) {
+                return;
+            }
+
+            switch (command.action) {
+                case 'say':
+                    this.doSay(
+                        target,
+                        command.text
+                    );
+                    break;
+
+                case 'move':
+                    if (target) {
+                        const steps =
+                            this.toNumber(
+                                command.steps,
+                                0
+                            );
+
+                        const radians =
+                            (target.direction - 90) *
+                            Math.PI /
+                            180;
+
+                        target.setXY(
+                            target.x +
+                            steps *
+                            Math.cos(radians),
+
+                            target.y +
+                            steps *
+                            Math.sin(radians)
+                        );
+                    }
+                    break;
+
+                case 'goto':
+                    if (target) {
+                        target.setXY(
+                            this.toNumber(
+                                command.x,
+                                target.x
+                            ),
+
+                            this.toNumber(
+                                command.y,
+                                target.y
+                            )
+                        );
+                    }
+                    break;
+
+                case 'turn':
+                    if (target) {
+                        target.setDirection(
+                            target.direction +
+                            this.toNumber(
+                                command.degrees,
+                                0
+                            )
+                        );
+                    }
+                    break;
+
+                case 'change_x':
+                    if (target) {
+                        target.setXY(
+                            target.x +
+                            this.toNumber(
+                                command.amount,
+                                0
+                            ),
+
+                            target.y
+                        );
+                    }
+                    break;
+
+                case 'change_y':
+                    if (target) {
+                        target.setXY(
+                            target.x,
+
+                            target.y +
+                            this.toNumber(
+                                command.amount,
+                                0
+                            )
+                        );
+                    }
+                    break;
+
+                case 'set_x':
+                    if (target) {
+                        target.setXY(
+                            this.toNumber(
+                                command.x,
+                                target.x
+                            ),
+
+                            target.y
+                        );
+                    }
+                    break;
+
+                case 'set_y':
+                    if (target) {
+                        target.setXY(
+                            target.x,
+
+                            this.toNumber(
+                                command.y,
+                                target.y
+                            )
+                        );
+                    }
+                    break;
+
+                case 'set_direction':
+                    if (target) {
+                        target.setDirection(
+                            this.toNumber(
+                                command.degrees,
+                                target.direction
+                            )
+                        );
+                    }
+                    break;
+
+                case 'next_costume':
+                    this.nextCostume(target);
+                    break;
+
+                case 'switch_costume':
+                    this.switchCostume(
+                        target,
+                        command.costume
+                    );
+                    break;
+
+                case 'change_size':
+                    if (
+                        target &&
+                        typeof target.setSize === 'function'
+                    ) {
+                        target.setSize(
+                            target.size +
+                            this.toNumber(
+                                command.amount,
+                                0
+                            )
+                        );
+                    }
+                    break;
+
+                case 'set_size':
+                    if (
+                        target &&
+                        typeof target.setSize === 'function'
+                    ) {
+                        target.setSize(
+                            this.toNumber(
+                                command.size,
+                                target.size
+                            )
+                        );
+                    }
+                    break;
+
+                case 'show':
+                    if (target) {
+                        target.visible = true;
+                    }
+                    break;
+
+                case 'hide':
+                    if (target) {
+                        target.visible = false;
+                    }
+                    break;
+
+                case 'wait':
+                    await this.delay(
+                        Math.max(
+                            0,
+                            this.toNumber(
+                                command.seconds,
+                                0
+                            )
+                        ) * 1000
+                    );
+                    break;
+
+                case 'function':
+                    this.fireFunction(
+                        command.name,
+                        Array.isArray(command.arguments)
+                            ? command.arguments
+                            : []
+                    );
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        doSay(target, text) {
+            if (!target) {
+                return;
+            }
+
+            const value =
+                String(text ?? '');
+
+            if (
+                typeof target.setSay ===
+                'function'
+            ) {
+                target.setSay(value);
+            } else {
+                target.say = value;
+            }
+        }
+
+        nextCostume(target) {
+            if (!target) {
+                return;
+            }
+
+            const count =
+                target.sprite?.costumes?.length || 0;
+
+            if (count <= 0) {
+                return;
+            }
+
+            if (
+                typeof target.setCostume ===
+                'function'
+            ) {
+                const current =
+                    Number.isFinite(
+                        target.currentCostume
+                    )
+                        ? target.currentCostume
+                        : 0;
+
+                const next =
+                    (current + 1) % count;
+
+                target.setCostume(next);
+                return;
+            }
+
+            target.currentCostume =
+                (target.currentCostume + 1) %
+                count;
+        }
+
+        switchCostume(target, costume) {
+            if (!target) {
+                return;
+            }
+
+            const costumes =
+                target.sprite?.costumes || [];
+
+            const wanted =
+                String(costume ?? '');
 
             let index = -1;
 
-            /*
-             * Try costume number first.
-             */
-            const number =
-                Number(stringValue);
-
-            if (
-                Number.isInteger(number) &&
-                number >= 1 &&
-                number <= costumes.length
-            ) {
+            if (/^-?\d+$/.test(wanted)) {
                 index =
-                    number - 1;
-            }
-
-            /*
-             * Otherwise search by costume name.
-             */
-            if (index < 0) {
-                const lower =
-                    stringValue.toLowerCase();
-
+                    Number(wanted) - 1;
+            } else {
                 index =
                     costumes.findIndex(
-                        costume =>
-                            costume.name
-                                .toLowerCase() ===
-                            lower
+                        costumeData =>
+                            String(
+                                costumeData.name || ''
+                            ).toLowerCase() ===
+                            wanted.toLowerCase()
                     );
             }
 
-            /*
-             * Also allow partial name matches.
-             */
-            if (index < 0) {
-                const lower =
-                    stringValue.toLowerCase();
-
-                index =
-                    costumes.findIndex(
-                        costume =>
-                            costume.name
-                                .toLowerCase()
-                                .includes(lower)
-                    );
-            }
-
-            if (index < 0) {
-                this.lastError =
-                    "Costume not found: " +
-                    stringValue;
-                return;
-            }
-
-            this._setCostumeIndex(
-                target,
-                index
-            );
-        }
-
-        _setCostumeIndex(target, index) {
-            /*
-             * Scratch VM targets normally use setCostume.
-             */
             if (
+                index >= 0 &&
+                index < costumes.length &&
                 typeof target.setCostume ===
-                "function"
+                'function'
             ) {
-                target.setCostume(
-                    index
-                );
-                return;
-            }
-
-            /*
-             * Fallback.
-             */
-            if (
-                target.currentCostume !==
-                undefined
-            ) {
-                target.currentCostume =
-                    index;
+                target.setCostume(index);
             }
         }
 
-        _nextCostume(target) {
-            const costumes =
-                this._getCostumes(target);
+        fireFunction(name, args) {
+            name =
+                String(name || '').trim();
 
-            if (!costumes.length) {
-                this.lastError =
-                    "This sprite has no costumes.";
+            if (!name) {
                 return;
             }
 
-            let current =
-                this._getCurrentCostume(
-                    target
+            this.registerFunction(name);
+
+            this._lastFunctionName = name;
+
+            const context = {
+                name: name,
+                args: Array.isArray(args)
+                    ? args.slice()
+                    : []
+            };
+
+            this._lastFunctionContext =
+                context;
+
+            const threads =
+                Scratch.vm.runtime.startHats(
+                    'aispritecontroller_whenFunctionReceived',
+                    {
+                        FUNCTION: name
+                    }
+                );
+
+            for (
+                const thread of threads || []
+            ) {
+                this.functionContexts.set(
+                    thread,
+                    context
+                );
+            }
+        }
+
+        functionArgument(args, util) {
+            const context =
+                this.getFunctionContext(util);
+
+            if (!context) {
+                return '';
+            }
+
+            const values =
+                context.args || [];
+
+            const index =
+                Math.floor(
+                    this.toNumber(
+                        args.INDEX,
+                        1
+                    )
                 ) - 1;
 
-            current++;
-
             if (
-                current >= costumes.length
+                index < 0 ||
+                index >= values.length
             ) {
-                current = 0;
+                return '';
             }
 
-            this._setCostumeIndex(
-                target,
-                current
+            return this.stringifyArgument(
+                values[index]
             );
         }
 
-        _previousCostume(target) {
-            const costumes =
-                this._getCostumes(target);
+        functionArgumentElse(args, util) {
+            const context =
+                this.getFunctionContext(util);
 
-            if (!costumes.length) {
-                this.lastError =
-                    "This sprite has no costumes.";
-                return;
-            }
+            const fallback =
+                String(
+                    args.FALLBACK ?? ''
+                );
 
-            let current =
-                this._getCurrentCostume(
-                    target
+            const index =
+                Math.floor(
+                    this.toNumber(
+                        args.INDEX,
+                        1
+                    )
                 ) - 1;
 
-            current--;
-
-            if (current < 0) {
-                current =
-                    costumes.length - 1;
+            if (!context) {
+                return fallback;
             }
 
-            this._setCostumeIndex(
-                target,
-                current
-            );
-        }
+            const values =
+                context.args || [];
 
-        _hide(target) {
             if (
-                typeof target.setVisible ===
-                "function"
+                index < 0 ||
+                index >= values.length
             ) {
-                target.setVisible(
-                    false
-                );
-            } else {
-                target.visible =
-                    false;
+                return fallback;
             }
-        }
 
-        _show(target) {
+            const value =
+                values[index];
+
             if (
-                typeof target.setVisible ===
-                "function"
+                value === undefined ||
+                value === null
             ) {
-                target.setVisible(
-                    true
-                );
-            } else {
-                target.visible =
-                    true;
+                return fallback;
+            }
+
+            return this.stringifyArgument(
+                value
+            );
+        }
+
+        getFunctionContext(util) {
+            if (util?.thread) {
+                const direct =
+                    this.functionContexts.get(
+                        util.thread
+                    );
+
+                if (direct) {
+                    return direct;
+                }
+
+                let thread =
+                    util.thread;
+
+                while (thread) {
+                    const context =
+                        this.functionContexts.get(
+                            thread
+                        );
+
+                    if (context) {
+                        return context;
+                    }
+
+                    thread =
+                        thread.parentThread;
+                }
+            }
+
+            return (
+                this._lastFunctionContext ||
+                null
+            );
+        }
+
+        stringifyArgument(value) {
+            if (
+                typeof value === 'string'
+            ) {
+                return value;
+            }
+
+            if (
+                typeof value === 'number' ||
+                typeof value === 'boolean'
+            ) {
+                return String(value);
+            }
+
+            try {
+                return JSON.stringify(value);
+            } catch (_) {
+                return String(value);
             }
         }
 
-        /*
-         * Direct Gandi blocks
-         */
+        toNumber(value, fallback) {
+            const number =
+                Number(value);
 
-        aiMove(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
+            return Number.isFinite(number)
+                ? number
+                : fallback;
+        }
 
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action: "move",
-                    amount:
-                        Number(args.AMOUNT)
-                },
-                target
+        delay(ms) {
+            return new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        ms
+                    )
             );
-        }
-
-        aiTurn(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action: "turn",
-                    degrees:
-                        Number(args.DEGREES)
-                },
-                target
-            );
-        }
-
-        aiPoint(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action: "point",
-                    direction:
-                        Number(args.DIRECTION)
-                },
-                target
-            );
-        }
-
-        aiGoTo(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action: "goto",
-                    x:
-                        Number(args.X),
-                    y:
-                        Number(args.Y)
-                },
-                target
-            );
-        }
-
-        aiChangeX(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action: "changex",
-                    amount:
-                        Number(args.AMOUNT)
-                },
-                target
-            );
-        }
-
-        aiChangeY(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action: "changey",
-                    amount:
-                        Number(args.AMOUNT)
-                },
-                target
-            );
-        }
-
-        aiNextCostume(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action:
-                        "nextcostume"
-                },
-                target
-            );
-        }
-
-        aiPreviousCostume(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action:
-                        "prevcostume"
-                },
-                target
-            );
-        }
-
-        aiCostume(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (!target) return;
-
-            this._executeAction(
-                {
-                    action:
-                        "costume",
-
-                    costume:
-                        String(
-                            args.COSTUME || ""
-                        )
-                },
-                target
-            );
-        }
-
-        aiSay(args, util) {
-            /*
-             * This intentionally does not call Gandi's
-             * built-in say function.
-             *
-             * Your Gandi project can use the JSON value
-             * from "AI action JSON".
-             */
-            this.lastAction =
-                JSON.stringify({
-                    action: "say",
-                    text:
-                        String(
-                            args.TEXT || ""
-                        )
-                });
-        }
-
-        aiHide(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (target) {
-                this._hide(target);
-            }
-        }
-
-        aiShow(args, util) {
-            const target =
-                this._getTarget(
-                    args,
-                    util
-                );
-
-            if (target) {
-                this._show(target);
-            }
-        }
-
-        lastAIResponse() {
-            return this.lastResponse;
-        }
-
-        lastAIAction() {
-            return this.lastAction;
-        }
-
-        lastAIError() {
-            return this.lastError;
         }
     }
 
     Scratch.extensions.register(
-        new AISpriteController(
-            Scratch.vm &&
-            Scratch.vm.runtime
-                ? Scratch.vm.runtime
-                : Scratch.runtime
-        )
+        new AISpriteController()
     );
 })(Scratch);

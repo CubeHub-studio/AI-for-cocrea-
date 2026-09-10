@@ -37,8 +37,7 @@
 
             this.lastFunctionContext = null;
 
-            this.functionContexts =
-                new WeakMap();
+            this.functionContexts = new WeakMap();
         }
 
         getInfo() {
@@ -194,7 +193,6 @@
                             "when function received [FUNCTION]",
                         isEdgeActivated: false,
                         shouldRestartExistingThreads: true,
-
                         arguments: {
                             FUNCTION: {
                                 type: Scratch.ArgumentType.STRING,
@@ -249,7 +247,8 @@
                         arguments: {
                             TEXT: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: "Hello!"
+                                defaultValue:
+                                    "Hello!"
                             }
                         }
                     },
@@ -378,7 +377,8 @@
                         arguments: {
                             COSTUME: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: "costume1"
+                                defaultValue:
+                                    "costume1"
                             }
                         }
                     },
@@ -450,218 +450,31 @@
             return `
 You are a STRICT JSON command generator for a Scratch/Gandi sprite.
 
+The word JSON means JavaScript Object Notation.
+
 YOUR ENTIRE RESPONSE MUST BE EXACTLY ONE VALID JSON OBJECT.
 
-DO NOT output:
-- normal text
-- explanations
-- Markdown
-- code fences
-- comments
-- multiple JSON objects
-- arrays as the top-level response
-- greetings
-- sentences before or after JSON
+NEVER respond with normal conversation.
 
-EVERY response must contain an "action" property.
+NEVER explain anything.
 
-ONLY USE THE COMMANDS LISTED BELOW.
+NEVER use Markdown.
+
+NEVER use code fences.
+
+NEVER put text before the JSON.
+
+NEVER put text after the JSON.
+
+NEVER return an array as the top-level response.
+
+EVERY response must be exactly one JSON object.
 
 ==================================================
-VALID COMMANDS
+VALID ACTIONS
 ==================================================
 
-1. SAY
-
-Format:
-{"action":"say","text":"Hello!"}
-
-Use when the user wants the sprite to say something.
-
---------------------------------------------------
-
-2. MOVE
-
-Format:
-{"action":"move","steps":10}
-
-Use when the user wants the sprite to move forward.
-
-"steps" must be a number.
-
---------------------------------------------------
-
-3. GOTO
-
-Format:
-{"action":"goto","x":100,"y":50}
-
-Use when the user wants the sprite to go to coordinates.
-
-"x" and "y" must be numbers.
-
---------------------------------------------------
-
-4. CHANGE X
-
-Format:
-{"action":"change_x","amount":10}
-
-Use when the user wants to change the sprite's X position.
-
---------------------------------------------------
-
-5. CHANGE Y
-
-Format:
-{"action":"change_y","amount":10}
-
-Use when the user wants to change the sprite's Y position.
-
---------------------------------------------------
-
-6. SET X
-
-Format:
-{"action":"set_x","x":100}
-
-Use when the user wants to set the sprite's X position.
-
---------------------------------------------------
-
-7. SET Y
-
-Format:
-{"action":"set_y","y":50}
-
-Use when the user wants to set the sprite's Y position.
-
---------------------------------------------------
-
-8. TURN
-
-Format:
-{"action":"turn","degrees":15}
-
-Use when the user wants the sprite to turn relative to its current direction.
-
---------------------------------------------------
-
-9. SET DIRECTION
-
-Format:
-{"action":"set_direction","degrees":90}
-
-Use when the user wants the sprite to point in a specific direction.
-
---------------------------------------------------
-
-10. NEXT COSTUME
-
-Format:
-{"action":"next_costume"}
-
-Use when the user says things such as:
-- next costume
-- change costume
-- go to the next costume
-- switch to the next costume
-
---------------------------------------------------
-
-11. SWITCH COSTUME
-
-Format:
-{"action":"switch_costume","costume":"costume2"}
-
-Use when the user specifies a costume name or costume number.
-
-Examples:
-
-{"action":"switch_costume","costume":"costume2"}
-
-{"action":"switch_costume","costume":"2"}
-
---------------------------------------------------
-
-12. CHANGE SIZE
-
-Format:
-{"action":"change_size","amount":10}
-
-Use when the user wants to increase or decrease sprite size.
-
---------------------------------------------------
-
-13. SET SIZE
-
-Format:
-{"action":"set_size","size":100}
-
-Use when the user wants an exact sprite size percentage.
-
---------------------------------------------------
-
-14. SHOW
-
-Format:
-{"action":"show"}
-
-Use when the user wants the sprite visible.
-
---------------------------------------------------
-
-15. HIDE
-
-Format:
-{"action":"hide"}
-
-Use when the user wants the sprite hidden.
-
---------------------------------------------------
-
-16. WAIT
-
-Format:
-{"action":"wait","seconds":1}
-
-Use when the user wants the sprite to wait.
-
---------------------------------------------------
-
-17. CUSTOM FUNCTION
-
-Format:
-{"action":"function","name":"FUNCTION_NAME","arguments":[]}
-
-Use when the user asks to call one of the custom functions provided below.
-
-Example:
-
-{"action":"function","name":"jump","arguments":[]}
-
-One argument:
-
-{"action":"function","name":"jump","arguments":[50]}
-
-Multiple arguments:
-
-{"action":"function","name":"moveTo","arguments":[100,50]}
-
-Arguments must be in the exact order requested by the function.
-
-==================================================
-STRICT RULES
-==================================================
-
-RULE 1:
-The top-level value MUST be a JSON object.
-
-RULE 2:
-The object MUST contain "action".
-
-RULE 3:
-"action" MUST be exactly one of:
+The ONLY valid values for "action" are:
 
 "say"
 "move"
@@ -681,199 +494,387 @@ RULE 3:
 "wait"
 "function"
 
+NEVER invent another action.
+
+==================================================
+COMMAND 1: SAY
+==================================================
+
+JSON:
+
+{"action":"say","text":"Hello!"}
+
+The "text" property must contain what the sprite should say.
+
+Example:
+
+User:
+say hello world
+
+JSON:
+{"action":"say","text":"Hello world"}
+
+==================================================
+COMMAND 2: MOVE
+==================================================
+
+JSON:
+
+{"action":"move","steps":10}
+
+"steps" must be a number.
+
+Example:
+
+User:
+move forward 25 steps
+
+JSON:
+{"action":"move","steps":25}
+
+==================================================
+COMMAND 3: GOTO
+==================================================
+
+JSON:
+
+{"action":"goto","x":100,"y":50}
+
+"x" and "y" must be numbers.
+
+Example:
+
+User:
+go to x 100 y 50
+
+JSON:
+{"action":"goto","x":100,"y":50}
+
+==================================================
+COMMAND 4: CHANGE X
+==================================================
+
+JSON:
+
+{"action":"change_x","amount":10}
+
+Example:
+
+User:
+move right 20
+
+JSON:
+{"action":"change_x","amount":20}
+
+Move left:
+
+{"action":"change_x","amount":-20}
+
+==================================================
+COMMAND 5: CHANGE Y
+==================================================
+
+JSON:
+
+{"action":"change_y","amount":10}
+
+Example:
+
+User:
+move up 20
+
+JSON:
+{"action":"change_y","amount":20}
+
+Move down:
+
+{"action":"change_y","amount":-20}
+
+==================================================
+COMMAND 6: SET X
+==================================================
+
+JSON:
+
+{"action":"set_x","x":100}
+
+==================================================
+COMMAND 7: SET Y
+==================================================
+
+JSON:
+
+{"action":"set_y","y":50}
+
+==================================================
+COMMAND 8: TURN
+==================================================
+
+JSON:
+
+{"action":"turn","degrees":15}
+
+This changes the direction relative to the current direction.
+
+==================================================
+COMMAND 9: SET DIRECTION
+==================================================
+
+JSON:
+
+{"action":"set_direction","degrees":90}
+
+This points the sprite in an exact direction.
+
+==================================================
+COMMAND 10: NEXT COSTUME
+==================================================
+
+JSON:
+
+{"action":"next_costume"}
+
+Use this for:
+
+next costume
+change costume
+go to next costume
+switch to next costume
+use the next costume
+
+Example:
+
+User:
+next costume
+
+JSON:
+{"action":"next_costume"}
+
+==================================================
+COMMAND 11: SWITCH COSTUME
+==================================================
+
+JSON:
+
+{"action":"switch_costume","costume":"costume2"}
+
+The costume may be a name or number.
+
+Example:
+
+User:
+switch to costume 2
+
+JSON:
+{"action":"switch_costume","costume":"2"}
+
+Example:
+
+User:
+switch to costume2
+
+JSON:
+{"action":"switch_costume","costume":"costume2"}
+
+==================================================
+COMMAND 12: CHANGE SIZE
+==================================================
+
+JSON:
+
+{"action":"change_size","amount":10}
+
+Increase:
+
+{"action":"change_size","amount":10}
+
+Decrease:
+
+{"action":"change_size","amount":-10}
+
+==================================================
+COMMAND 13: SET SIZE
+==================================================
+
+JSON:
+
+{"action":"set_size","size":100}
+
+The size is a percentage.
+
+Example:
+
+User:
+set size to 50 percent
+
+JSON:
+{"action":"set_size","size":50}
+
+==================================================
+COMMAND 14: SHOW
+==================================================
+
+JSON:
+
+{"action":"show"}
+
+==================================================
+COMMAND 15: HIDE
+==================================================
+
+JSON:
+
+{"action":"hide"}
+
+==================================================
+COMMAND 16: WAIT
+==================================================
+
+JSON:
+
+{"action":"wait","seconds":1}
+
+Example:
+
+User:
+wait 5 seconds
+
+JSON:
+{"action":"wait","seconds":5}
+
+==================================================
+COMMAND 17: CUSTOM FUNCTION
+==================================================
+
+Custom functions may be available.
+
+To call one:
+
+{"action":"function","name":"FUNCTION_NAME","arguments":[]}
+
+The function name MUST exactly match one of the available custom functions.
+
+Arguments MUST be inside the "arguments" array.
+
+Example with zero arguments:
+
+{"action":"function","name":"jump","arguments":[]}
+
+Example with one argument:
+
+{"action":"function","name":"jump","arguments":[50]}
+
+Example with two arguments:
+
+{"action":"function","name":"moveTo","arguments":[100,50]}
+
+==================================================
+STRICT JSON RULES
+==================================================
+
+RULE 1:
+
+The response must be valid JSON.
+
+RULE 2:
+
+The top-level value must be an object.
+
+RULE 3:
+
+The object must contain "action".
+
 RULE 4:
-NEVER invent an action.
+
+"action" must be one of the valid actions.
 
 RULE 5:
-NEVER use Scratch block names as actions.
 
-For example, DO NOT output:
+Do not invent actions.
+
+RULE 6:
+
+Do not use Scratch block names as action names.
+
+BAD:
 
 {"action":"next costume"}
 
-Instead output:
-
-{"action":"next_costume"}
-
-RULE 6:
-NEVER output natural language.
-
-BAD:
-The sprite will change costume.
-
 GOOD:
+
 {"action":"next_costume"}
 
 RULE 7:
-NEVER output Markdown.
+
+Do not respond with natural language.
 
 BAD:
+
+I will change the costume.
+
+GOOD:
+
+{"action":"next_costume"}
+
+RULE 8:
+
+Do not use Markdown.
+
+BAD:
+
 \`\`\`json
 {"action":"next_costume"}
 \`\`\`
 
 GOOD:
-{"action":"next_costume"}
 
-RULE 8:
-Only output ONE command per response.
+{"action":"next_costume"}
 
 RULE 9:
-If the user says "next costume", return:
 
-{"action":"next_costume"}
+Return exactly ONE command.
 
 RULE 10:
-If the user asks to call a custom function, use:
 
-{"action":"function","name":"FUNCTION_NAME","arguments":[]}
+Never return multiple JSON objects.
 
 RULE 11:
-Do not create new commands.
+
+Never return a JSON array.
 
 RULE 12:
-Do not return an error message as normal text.
 
-==================================================
-CUSTOM FUNCTIONS
-==================================================
+Never include comments.
 
-The project may provide custom functions after this system prompt.
+RULE 13:
 
-Only functions listed there are valid.
+Never include explanations.
 
-When calling a custom function:
-- use the exact function name
-- use action "function"
-- use an "arguments" array
-- preserve argument order
-- do not invent arguments
+RULE 14:
 
-==================================================
-EXAMPLES
-==================================================
+If the user asks for a command, execute the requested command using the correct JSON action.
 
-User:
-hello
+RULE 15:
 
-Response:
-{"action":"say","text":"Hello!"}
+If the user says "next costume", ALWAYS return:
 
-User:
-say hi
-
-Response:
-{"action":"say","text":"Hi!"}
-
-User:
-move 20 steps
-
-Response:
-{"action":"move","steps":20}
-
-User:
-go to 100 50
-
-Response:
-{"action":"goto","x":100,"y":50}
-
-User:
-move right
-
-Response:
-{"action":"change_x","amount":10}
-
-User:
-move left
-
-Response:
-{"action":"change_x","amount":-10}
-
-User:
-move up
-
-Response:
-{"action":"change_y","amount":10}
-
-User:
-move down
-
-Response:
-{"action":"change_y","amount":-10}
-
-User:
-next costume
-
-Response:
 {"action":"next_costume"}
 
-User:
-change costume
+RULE 16:
 
-Response:
-{"action":"next_costume"}
+If the user asks to call a custom function, return the function action.
 
-User:
-switch to costume2
+==================================================
+IMPORTANT
+==================================================
 
-Response:
-{"action":"switch_costume","costume":"costume2"}
+You are not a conversational assistant in this mode.
 
-User:
-turn 90 degrees
+You are a machine-readable command generator.
 
-Response:
-{"action":"turn","degrees":90}
+The extension will parse your JSON and execute it.
 
-User:
-point right
-
-Response:
-{"action":"set_direction","degrees":90}
-
-User:
-hide
-
-Response:
-{"action":"hide"}
-
-User:
-show
-
-Response:
-{"action":"show"}
-
-User:
-wait 2 seconds
-
-Response:
-{"action":"wait","seconds":2}
-
-User:
-make yourself bigger
-
-Response:
-{"action":"change_size","amount":10}
-
-User:
-make yourself smaller
-
-Response:
-{"action":"change_size","amount":-10}
-
-User:
-set size to 50%
-
-Response:
-{"action":"set_size","size":50}
-
-Remember:
-
-YOUR RESPONSE IS NOT A CHAT MESSAGE.
-
-YOUR RESPONSE IS A MACHINE COMMAND.
-
-RETURN EXACTLY ONE VALID JSON OBJECT.
+Therefore, output ONLY valid JSON.
 `.trim();
         }
 
@@ -894,7 +895,7 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
         setSystemPrompt(args) {
             this.systemPrompt =
-                String(args.PROMPT || "");
+                String(args.PROMPT || "").trim();
         }
 
         aiResponse() {
@@ -949,7 +950,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                         content:
                             this.getCompleteSystemPrompt()
                     },
+
                     ...this.history,
+
                     {
                         role: "user",
                         content: message
@@ -1071,6 +1074,7 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                     command,
                     this.lastTarget
                 );
+
             } catch (error) {
                 this.lastError =
                     error?.message ||
@@ -1079,6 +1083,7 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                 this.lastResponse =
                     "AI error: " +
                     this.lastError;
+
             } finally {
                 this.thinking = false;
             }
@@ -1092,6 +1097,114 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                 prompt =
                     this.getDefaultSystemPrompt();
             }
+
+            /*
+             * This is intentionally appended even if
+             * the user used the "set AI system prompt"
+             * block.
+             *
+             * Groq JSON mode requires the messages
+             * to contain the word "json".
+             */
+
+            prompt += `
+
+==================================================
+MANDATORY JSON OUTPUT
+==================================================
+
+The response MUST be valid JSON.
+
+The response MUST contain the word JSON in this
+instruction context.
+
+Return exactly ONE JSON object.
+
+Do not return normal text.
+
+Do not return Markdown.
+
+Do not use code fences.
+
+Do not return multiple objects.
+
+Do not return an array.
+
+Every response must contain an "action" property.
+
+Only use valid actions from the command list.
+`.trim();
+
+            /*
+             * Always append the complete command
+             * list so custom system prompts cannot
+             * accidentally remove the command knowledge.
+             */
+
+            prompt += `
+
+==================================================
+VALID ACTION REFERENCE
+==================================================
+
+The only valid actions are:
+
+say
+move
+goto
+change_x
+change_y
+set_x
+set_y
+turn
+set_direction
+next_costume
+switch_costume
+change_size
+set_size
+show
+hide
+wait
+function
+
+Examples:
+
+{"action":"say","text":"Hello!"}
+
+{"action":"move","steps":10}
+
+{"action":"goto","x":100,"y":50}
+
+{"action":"change_x","amount":10}
+
+{"action":"change_y","amount":10}
+
+{"action":"set_x","x":100}
+
+{"action":"set_y","y":50}
+
+{"action":"turn","degrees":15}
+
+{"action":"set_direction","degrees":90}
+
+{"action":"next_costume"}
+
+{"action":"switch_costume","costume":"costume2"}
+
+{"action":"change_size","amount":10}
+
+{"action":"set_size","size":100}
+
+{"action":"show"}
+
+{"action":"hide"}
+
+{"action":"wait","seconds":1}
+
+Custom function:
+
+{"action":"function","name":"FUNCTION_NAME","arguments":[]}
+`.trim();
 
             if (
                 this.customFunctions.length
@@ -1120,8 +1233,10 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                         JSON.stringify({
                             action:
                                 "function",
+
                             name:
                                 func.name,
+
                             arguments:
                                 Array(
                                     func.argumentCount
@@ -1300,7 +1415,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
             switch (action) {
                 case "say":
                     return {
-                        action: "say",
+                        action:
+                            "say",
+
                         text:
                             String(
                                 command.text ??
@@ -1310,7 +1427,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "move":
                     return {
-                        action: "move",
+                        action:
+                            "move",
+
                         steps:
                             this.number(
                                 command.steps,
@@ -1320,12 +1439,15 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "goto":
                     return {
-                        action: "goto",
+                        action:
+                            "goto",
+
                         x:
                             this.number(
                                 command.x,
                                 0
                             ),
+
                         y:
                             this.number(
                                 command.y,
@@ -1335,7 +1457,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "change_x":
                     return {
-                        action: "change_x",
+                        action:
+                            "change_x",
+
                         amount:
                             this.number(
                                 command.amount,
@@ -1345,7 +1469,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "change_y":
                     return {
-                        action: "change_y",
+                        action:
+                            "change_y",
+
                         amount:
                             this.number(
                                 command.amount,
@@ -1355,7 +1481,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "set_x":
                     return {
-                        action: "set_x",
+                        action:
+                            "set_x",
+
                         x:
                             this.number(
                                 command.x,
@@ -1365,7 +1493,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "set_y":
                     return {
-                        action: "set_y",
+                        action:
+                            "set_y",
+
                         y:
                             this.number(
                                 command.y,
@@ -1375,7 +1505,9 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "turn":
                     return {
-                        action: "turn",
+                        action:
+                            "turn",
+
                         degrees:
                             this.number(
                                 command.degrees,
@@ -1387,6 +1519,7 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                     return {
                         action:
                             "set_direction",
+
                         degrees:
                             this.number(
                                 command.degrees,
@@ -1404,6 +1537,7 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                     return {
                         action:
                             "switch_costume",
+
                         costume:
                             String(
                                 command.costume ??
@@ -1415,6 +1549,7 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                     return {
                         action:
                             "change_size",
+
                         amount:
                             this.number(
                                 command.amount,
@@ -1426,6 +1561,7 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                     return {
                         action:
                             "set_size",
+
                         size:
                             this.number(
                                 command.size,
@@ -1435,17 +1571,21 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
                 case "show":
                     return {
-                        action: "show"
+                        action:
+                            "show"
                     };
 
                 case "hide":
                     return {
-                        action: "hide"
+                        action:
+                            "hide"
                     };
 
                 case "wait":
                     return {
-                        action: "wait",
+                        action:
+                            "wait",
+
                         seconds:
                             this.number(
                                 command.seconds,
@@ -1485,6 +1625,11 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
                         )
                             ? command.arguments
                             : [];
+
+                    /*
+                     * Require the exact number of
+                     * arguments defined by the function.
+                     */
 
                     if (
                         functionArguments.length !==
@@ -2014,7 +2159,10 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
             }
         }
 
-        say(target, text) {
+        say(
+            target,
+            text
+        ) {
             if (!target) {
                 return;
             }
@@ -2026,14 +2174,14 @@ RETURN EXACTLY ONE VALID JSON OBJECT.
 
             if (
                 typeof target.setSay ===
-                "function"
+                    "function"
             ) {
                 target.setSay(
                     value
                 );
             } else if (
                 typeof target.say ===
-                "function"
+                    "function"
             ) {
                 target.say(
                     value

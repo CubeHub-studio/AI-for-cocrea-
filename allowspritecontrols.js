@@ -9,6 +9,8 @@
 
     class AISpriteController {
         constructor() {
+            this.runtime = Scratch.vm.runtime;
+
             this.apiUrl =
                 "https://api.groq.com/openai/v1/chat/completions";
 
@@ -37,8 +39,6 @@
 
             this.functionContexts =
                 new WeakMap();
-
-            this.runtime = Scratch.vm.runtime;
         }
 
         getInfo() {
@@ -51,37 +51,25 @@
                 color3: "#047857",
 
                 blocks: [
-
-                    // =========================
-                    // AI SETTINGS
-                    // =========================
-
                     {
                         opcode: "setApiKey",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
-                        text:
-                            "set API key to [KEY]",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "set API key to [KEY]",
                         arguments: {
                             KEY: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                defaultValue:
-                                    "gsk_..."
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "gsk_..."
                             }
                         }
                     },
 
                     {
                         opcode: "setApiUrl",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
-                        text:
-                            "set AI API URL to [URL]",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "set AI API URL to [URL]",
                         arguments: {
                             URL: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
+                                type: Scratch.ArgumentType.STRING,
                                 defaultValue:
                                     "https://api.groq.com/openai/v1/chat/completions"
                             }
@@ -90,14 +78,11 @@
 
                     {
                         opcode: "setModel",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
-                        text:
-                            "set AI model to [MODEL]",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "set AI model to [MODEL]",
                         arguments: {
                             MODEL: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
+                                type: Scratch.ArgumentType.STRING,
                                 defaultValue:
                                     "llama-3.3-70b-versatile"
                             }
@@ -106,14 +91,11 @@
 
                     {
                         opcode: "setSystemPrompt",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
-                        text:
-                            "set AI system prompt to [PROMPT]",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "set AI system prompt to [PROMPT]",
                         arguments: {
                             PROMPT: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
+                                type: Scratch.ArgumentType.STRING,
                                 defaultValue:
                                     "You control a Scratch sprite."
                             }
@@ -122,441 +104,334 @@
 
                     {
                         opcode: "askAI",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
-                        text:
-                            "ask AI [MESSAGE]",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "ask AI [MESSAGE]",
                         arguments: {
                             MESSAGE: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
+                                type: Scratch.ArgumentType.STRING,
                                 defaultValue:
-                                    "Say hello."
+                                    "next costume"
                             }
                         }
                     },
 
                     {
                         opcode: "aiResponse",
-                        blockType:
-                            Scratch.BlockType.REPORTER,
-                        text:
-                            "AI response"
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "AI response"
                     },
 
                     {
                         opcode: "aiIsThinking",
-                        blockType:
-                            Scratch.BlockType.BOOLEAN,
-                        text:
-                            "AI is thinking?"
+                        blockType: Scratch.BlockType.BOOLEAN,
+                        text: "AI is thinking?"
                     },
 
                     {
                         opcode: "lastError",
-                        blockType:
-                            Scratch.BlockType.REPORTER,
-                        text:
-                            "AI error"
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "AI error"
                     },
 
                     {
-                        opcode:
-                            "clearConversation",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
-                        text:
-                            "clear AI conversation"
+                        opcode: "clearConversation",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "clear AI conversation"
                     },
 
-                    // =========================
-                    // CUSTOM FUNCTIONS
-                    // =========================
-
                     {
-                        opcode:
-                            "createFunction",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "createFunction",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "create function [NAME] with [ARGUMENTS] arguments",
                         arguments: {
                             NAME: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                defaultValue:
-                                    "jump"
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "jump"
                             },
 
                             ARGUMENTS: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    0
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 0
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "deleteFunction",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
-                        text:
-                            "delete function [NAME]",
+                        opcode: "deleteFunction",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "delete function [NAME]",
                         arguments: {
                             NAME: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                menu:
-                                    "functionMenu"
+                                type: Scratch.ArgumentType.STRING,
+                                menu: "functionMenu"
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "functionExists",
-                        blockType:
-                            Scratch.BlockType.BOOLEAN,
-                        text:
-                            "function [NAME] exists?",
+                        opcode: "functionExists",
+                        blockType: Scratch.BlockType.BOOLEAN,
+                        text: "function [NAME] exists?",
                         arguments: {
                             NAME: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                menu:
-                                    "functionMenu"
+                                type: Scratch.ArgumentType.STRING,
+                                menu: "functionMenu"
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "functionList",
-                        blockType:
-                            Scratch.BlockType.REPORTER,
-                        text:
-                            "custom function list"
+                        opcode: "functionList",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "custom function list"
                     },
 
                     {
-                        opcode:
-                            "whenFunctionReceived",
-                        blockType:
-                            Scratch.BlockType.HAT,
+                        opcode: "whenFunctionReceived",
+                        blockType: Scratch.BlockType.HAT,
                         text:
                             "when function received [FUNCTION]",
                         isEdgeActivated: false,
-                        shouldRestartExistingThreads:
-                            true,
+                        shouldRestartExistingThreads: true,
+
                         arguments: {
                             FUNCTION: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                menu:
-                                    "functionMenu"
+                                type: Scratch.ArgumentType.STRING,
+                                menu: "functionMenu"
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "functionArgument",
-                        blockType:
-                            Scratch.BlockType.REPORTER,
+                        opcode: "functionArgument",
+                        blockType: Scratch.BlockType.REPORTER,
                         text:
                             "function argument [INDEX]",
                         arguments: {
                             INDEX: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    1
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 1
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "functionArgumentElse",
-                        blockType:
-                            Scratch.BlockType.REPORTER,
+                        opcode: "functionArgumentElse",
+                        blockType: Scratch.BlockType.REPORTER,
                         text:
                             "function argument [INDEX] else [FALLBACK]",
                         arguments: {
                             INDEX: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    1
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 1
                             },
 
                             FALLBACK: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                defaultValue:
-                                    ""
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: ""
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "lastFunctionReceived",
-                        blockType:
-                            Scratch.BlockType.REPORTER,
+                        opcode: "lastFunctionReceived",
+                        blockType: Scratch.BlockType.REPORTER,
                         text:
                             "last function received"
                     },
 
-                    // =========================
-                    // SPRITE COMMANDS
-                    // =========================
-
                     {
                         opcode: "say",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite say [TEXT]",
                         arguments: {
                             TEXT: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                defaultValue:
-                                    "Hello!"
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "Hello!"
                             }
                         }
                     },
 
                     {
                         opcode: "move",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite move [STEPS] steps",
                         arguments: {
                             STEPS: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    10
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 10
                             }
                         }
                     },
 
                     {
                         opcode: "goTo",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite go to x: [X] y: [Y]",
                         arguments: {
                             X: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    0
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 0
                             },
 
                             Y: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    0
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 0
                             }
                         }
                     },
 
                     {
                         opcode: "changeX",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite change x by [VALUE]",
                         arguments: {
                             VALUE: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    10
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 10
                             }
                         }
                     },
 
                     {
                         opcode: "changeY",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite change y by [VALUE]",
                         arguments: {
                             VALUE: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    10
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 10
                             }
                         }
                     },
 
                     {
                         opcode: "setX",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite set x to [X]",
                         arguments: {
                             X: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    0
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 0
                             }
                         }
                     },
 
                     {
                         opcode: "setY",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite set y to [Y]",
                         arguments: {
                             Y: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    0
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 0
                             }
                         }
                     },
 
                     {
                         opcode: "turn",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite turn [DEGREES] degrees",
                         arguments: {
                             DEGREES: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    15
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 15
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "pointDirection",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "pointDirection",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite point in direction [DIRECTION]",
                         arguments: {
                             DIRECTION: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    90
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 90
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "nextCostume",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "nextCostume",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite next costume"
                     },
 
                     {
-                        opcode:
-                            "switchCostume",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "switchCostume",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite switch costume to [COSTUME]",
                         arguments: {
                             COSTUME: {
-                                type:
-                                    Scratch.ArgumentType.STRING,
-                                defaultValue:
-                                    "costume1"
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "costume1"
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "changeSize",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "changeSize",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite change size by [SIZE]",
                         arguments: {
                             SIZE: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    10
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 10
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "setSize",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "setSize",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite set size to [SIZE] %",
                         arguments: {
                             SIZE: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    100
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 100
                             }
                         }
                     },
 
                     {
-                        opcode:
-                            "show",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "show",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite show"
                     },
 
                     {
-                        opcode:
-                            "hide",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "hide",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite hide"
                     },
 
                     {
-                        opcode:
-                            "wait",
-                        blockType:
-                            Scratch.BlockType.COMMAND,
+                        opcode: "wait",
+                        blockType: Scratch.BlockType.COMMAND,
                         text:
                             "AI sprite wait [SECONDS] seconds",
                         arguments: {
                             SECONDS: {
-                                type:
-                                    Scratch.ArgumentType.NUMBER,
-                                defaultValue:
-                                    1
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: 1
                             }
                         }
                     }
@@ -565,95 +440,442 @@
                 menus: {
                     functionMenu: {
                         acceptReporters: true,
-                        items:
-                            "getFunctionNames"
+                        items: "getFunctionNames"
                     }
                 }
             };
         }
 
-        // =====================================================
-        // DEFAULT AI PROMPT
-        // =====================================================
-
         getDefaultSystemPrompt() {
             return `
-You control a Scratch/Gandi sprite.
+You are a STRICT JSON command generator for a Scratch/Gandi sprite.
 
-Return ONLY ONE valid JSON object.
-Never use Markdown.
-Never use code fences.
-Never explain the JSON.
+YOUR ENTIRE RESPONSE MUST BE EXACTLY ONE VALID JSON OBJECT.
 
-VALID SPRITE COMMANDS:
+DO NOT output:
+- normal text
+- explanations
+- Markdown
+- code fences
+- comments
+- multiple JSON objects
+- arrays as the top-level response
+- greetings
+- sentences before or after JSON
 
+EVERY response must contain an "action" property.
+
+ONLY USE THE COMMANDS LISTED BELOW.
+
+==================================================
+VALID COMMANDS
+==================================================
+
+1. SAY
+
+Format:
 {"action":"say","text":"Hello!"}
 
+Use when the user wants the sprite to say something.
+
+--------------------------------------------------
+
+2. MOVE
+
+Format:
 {"action":"move","steps":10}
 
+Use when the user wants the sprite to move forward.
+
+"steps" must be a number.
+
+--------------------------------------------------
+
+3. GOTO
+
+Format:
 {"action":"goto","x":100,"y":50}
 
+Use when the user wants the sprite to go to coordinates.
+
+"x" and "y" must be numbers.
+
+--------------------------------------------------
+
+4. CHANGE X
+
+Format:
 {"action":"change_x","amount":10}
 
+Use when the user wants to change the sprite's X position.
+
+--------------------------------------------------
+
+5. CHANGE Y
+
+Format:
 {"action":"change_y","amount":10}
 
+Use when the user wants to change the sprite's Y position.
+
+--------------------------------------------------
+
+6. SET X
+
+Format:
 {"action":"set_x","x":100}
 
+Use when the user wants to set the sprite's X position.
+
+--------------------------------------------------
+
+7. SET Y
+
+Format:
 {"action":"set_y","y":50}
 
+Use when the user wants to set the sprite's Y position.
+
+--------------------------------------------------
+
+8. TURN
+
+Format:
 {"action":"turn","degrees":15}
 
+Use when the user wants the sprite to turn relative to its current direction.
+
+--------------------------------------------------
+
+9. SET DIRECTION
+
+Format:
 {"action":"set_direction","degrees":90}
 
+Use when the user wants the sprite to point in a specific direction.
+
+--------------------------------------------------
+
+10. NEXT COSTUME
+
+Format:
 {"action":"next_costume"}
+
+Use when the user says things such as:
+- next costume
+- change costume
+- go to the next costume
+- switch to the next costume
+
+--------------------------------------------------
+
+11. SWITCH COSTUME
+
+Format:
+{"action":"switch_costume","costume":"costume2"}
+
+Use when the user specifies a costume name or costume number.
+
+Examples:
 
 {"action":"switch_costume","costume":"costume2"}
 
+{"action":"switch_costume","costume":"2"}
+
+--------------------------------------------------
+
+12. CHANGE SIZE
+
+Format:
 {"action":"change_size","amount":10}
 
+Use when the user wants to increase or decrease sprite size.
+
+--------------------------------------------------
+
+13. SET SIZE
+
+Format:
 {"action":"set_size","size":100}
 
+Use when the user wants an exact sprite size percentage.
+
+--------------------------------------------------
+
+14. SHOW
+
+Format:
 {"action":"show"}
 
+Use when the user wants the sprite visible.
+
+--------------------------------------------------
+
+15. HIDE
+
+Format:
 {"action":"hide"}
 
+Use when the user wants the sprite hidden.
+
+--------------------------------------------------
+
+16. WAIT
+
+Format:
 {"action":"wait","seconds":1}
 
-CUSTOM FUNCTIONS:
+Use when the user wants the sprite to wait.
 
-The project can create custom functions.
+--------------------------------------------------
 
-To call a custom function, use:
+17. CUSTOM FUNCTION
 
+Format:
 {"action":"function","name":"FUNCTION_NAME","arguments":[]}
+
+Use when the user asks to call one of the custom functions provided below.
 
 Example:
 
 {"action":"function","name":"jump","arguments":[]}
 
-With one argument:
+One argument:
 
 {"action":"function","name":"jump","arguments":[50]}
 
-With multiple arguments:
+Multiple arguments:
 
 {"action":"function","name":"moveTo","arguments":[100,50]}
 
-Arguments are numbered starting at 1.
+Arguments must be in the exact order requested by the function.
 
-The first argument is function argument 1.
-The second argument is function argument 2.
-The third argument is function argument 3.
+==================================================
+STRICT RULES
+==================================================
 
-Always use the exact function name.
+RULE 1:
+The top-level value MUST be a JSON object.
 
-If the user asks to call a custom function, use action=function.
+RULE 2:
+The object MUST contain "action".
+
+RULE 3:
+"action" MUST be exactly one of:
+
+"say"
+"move"
+"goto"
+"change_x"
+"change_y"
+"set_x"
+"set_y"
+"turn"
+"set_direction"
+"next_costume"
+"switch_costume"
+"change_size"
+"set_size"
+"show"
+"hide"
+"wait"
+"function"
+
+RULE 4:
+NEVER invent an action.
+
+RULE 5:
+NEVER use Scratch block names as actions.
+
+For example, DO NOT output:
+
+{"action":"next costume"}
+
+Instead output:
+
+{"action":"next_costume"}
+
+RULE 6:
+NEVER output natural language.
+
+BAD:
+The sprite will change costume.
+
+GOOD:
+{"action":"next_costume"}
+
+RULE 7:
+NEVER output Markdown.
+
+BAD:
+\`\`\`json
+{"action":"next_costume"}
+\`\`\`
+
+GOOD:
+{"action":"next_costume"}
+
+RULE 8:
+Only output ONE command per response.
+
+RULE 9:
+If the user says "next costume", return:
+
+{"action":"next_costume"}
+
+RULE 10:
+If the user asks to call a custom function, use:
+
+{"action":"function","name":"FUNCTION_NAME","arguments":[]}
+
+RULE 11:
+Do not create new commands.
+
+RULE 12:
+Do not return an error message as normal text.
+
+==================================================
+CUSTOM FUNCTIONS
+==================================================
+
+The project may provide custom functions after this system prompt.
+
+Only functions listed there are valid.
+
+When calling a custom function:
+- use the exact function name
+- use action "function"
+- use an "arguments" array
+- preserve argument order
+- do not invent arguments
+
+==================================================
+EXAMPLES
+==================================================
+
+User:
+hello
+
+Response:
+{"action":"say","text":"Hello!"}
+
+User:
+say hi
+
+Response:
+{"action":"say","text":"Hi!"}
+
+User:
+move 20 steps
+
+Response:
+{"action":"move","steps":20}
+
+User:
+go to 100 50
+
+Response:
+{"action":"goto","x":100,"y":50}
+
+User:
+move right
+
+Response:
+{"action":"change_x","amount":10}
+
+User:
+move left
+
+Response:
+{"action":"change_x","amount":-10}
+
+User:
+move up
+
+Response:
+{"action":"change_y","amount":10}
+
+User:
+move down
+
+Response:
+{"action":"change_y","amount":-10}
+
+User:
+next costume
+
+Response:
+{"action":"next_costume"}
+
+User:
+change costume
+
+Response:
+{"action":"next_costume"}
+
+User:
+switch to costume2
+
+Response:
+{"action":"switch_costume","costume":"costume2"}
+
+User:
+turn 90 degrees
+
+Response:
+{"action":"turn","degrees":90}
+
+User:
+point right
+
+Response:
+{"action":"set_direction","degrees":90}
+
+User:
+hide
+
+Response:
+{"action":"hide"}
+
+User:
+show
+
+Response:
+{"action":"show"}
+
+User:
+wait 2 seconds
+
+Response:
+{"action":"wait","seconds":2}
+
+User:
+make yourself bigger
+
+Response:
+{"action":"change_size","amount":10}
+
+User:
+make yourself smaller
+
+Response:
+{"action":"change_size","amount":-10}
+
+User:
+set size to 50%
+
+Response:
+{"action":"set_size","size":50}
+
+Remember:
+
+YOUR RESPONSE IS NOT A CHAT MESSAGE.
+
+YOUR RESPONSE IS A MACHINE COMMAND.
+
+RETURN EXACTLY ONE VALID JSON OBJECT.
 `.trim();
         }
-
-        // =====================================================
-        // AI SETTINGS
-        // =====================================================
 
         setApiKey(args) {
             this.apiKey =
@@ -693,10 +915,6 @@ If the user asks to call a custom function, use action=function.
             this.lastError = "";
         }
 
-        // =====================================================
-        // ASK AI
-        // =====================================================
-
         async askAI(args, util) {
             if (this.thinking) {
                 return;
@@ -707,7 +925,7 @@ If the user asks to call a custom function, use action=function.
                     "No API key has been set.";
 
                 this.lastResponse =
-                    "Error: " +
+                    "AI error: " +
                     this.lastError;
 
                 return;
@@ -731,21 +949,12 @@ If the user asks to call a custom function, use action=function.
                         content:
                             this.getCompleteSystemPrompt()
                     },
-
                     ...this.history,
-
                     {
                         role: "user",
                         content: message
                     }
                 ];
-
-                // IMPORTANT:
-                // Cocrea/Gandi does not provide
-                // Scratch.fetch().
-                //
-                // Use the browser's normal
-                // fetch() function instead.
 
                 const response =
                     await fetch(
@@ -770,7 +979,12 @@ If the user asks to call a custom function, use action=function.
                                     messages,
 
                                 temperature:
-                                    0.2
+                                    0,
+
+                                response_format: {
+                                    type:
+                                        "json_object"
+                                }
                             })
                         }
                     );
@@ -802,11 +1016,8 @@ If the user asks to call a custom function, use action=function.
 
                 const answer =
                     String(
-                        data?.choices?.[0]
-                            ?.message
-                            ?.content ??
-                        data?.choices?.[0]
-                            ?.text ??
+                        data?.choices?.[0]?.message?.content ??
+                        data?.choices?.[0]?.text ??
                         ""
                     ).trim();
 
@@ -816,8 +1027,21 @@ If the user asks to call a custom function, use action=function.
                     );
                 }
 
+                const command =
+                    this.parseCommand(
+                        answer
+                    );
+
+                if (!command) {
+                    throw new Error(
+                        "The AI returned invalid JSON or an invalid command."
+                    );
+                }
+
                 this.lastResponse =
-                    answer;
+                    JSON.stringify(
+                        command
+                    );
 
                 this.history.push(
                     {
@@ -827,13 +1051,15 @@ If the user asks to call a custom function, use action=function.
 
                     {
                         role: "assistant",
-                        content: answer
+                        content:
+                            JSON.stringify(
+                                command
+                            )
                     }
                 );
 
                 if (
-                    this.history.length >
-                    20
+                    this.history.length > 20
                 ) {
                     this.history =
                         this.history.slice(
@@ -841,17 +1067,10 @@ If the user asks to call a custom function, use action=function.
                         );
                 }
 
-                const command =
-                    this.parseCommand(
-                        answer
-                    );
-
-                if (command) {
-                    await this.executeCommand(
-                        command,
-                        this.lastTarget
-                    );
-                }
+                await this.executeCommand(
+                    command,
+                    this.lastTarget
+                );
             } catch (error) {
                 this.lastError =
                     error?.message ||
@@ -878,49 +1097,55 @@ If the user asks to call a custom function, use action=function.
                 this.customFunctions.length
             ) {
                 prompt +=
-                    "\n\nCUSTOM FUNCTIONS CURRENTLY AVAILABLE:\n";
+                    "\n\n==================================================\n" +
+                    "CUSTOM FUNCTIONS CURRENTLY AVAILABLE\n" +
+                    "==================================================\n";
 
                 for (
-                    const func of
-                        this.customFunctions
+                    const func
+                    of this.customFunctions
                 ) {
                     prompt +=
-                        "- " +
+                        "\nFunction: " +
                         func.name +
-                        "(";
+                        "\n";
 
-                    for (
-                        let i = 1;
-                        i <=
-                            func.argumentCount;
-                        i++
-                    ) {
-                        if (i > 1) {
-                            prompt += ", ";
-                        }
+                    prompt +=
+                        "Arguments: " +
+                        func.argumentCount +
+                        "\n";
 
-                        prompt +=
-                            "argument" +
-                            i;
-                    }
-
-                    prompt += ")\n";
+                    prompt +=
+                        "Call format: " +
+                        JSON.stringify({
+                            action:
+                                "function",
+                            name:
+                                func.name,
+                            arguments:
+                                Array(
+                                    func.argumentCount
+                                ).fill(
+                                    "argument"
+                                )
+                        }) +
+                        "\n";
                 }
 
                 prompt +=
-                    "\nWhen calling one of these functions, use the exact name and put arguments in the correct order.\n";
+                    "\nOnly these custom functions may be called.";
+            } else {
+                prompt +=
+                    "\n\nThere are currently NO custom functions.";
             }
 
             return prompt;
         }
 
-        // =====================================================
-        // COMMAND PARSING
-        // =====================================================
-
         parseCommand(text) {
             let cleaned =
-                String(text || "").trim();
+                String(text || "")
+                    .trim();
 
             cleaned =
                 cleaned
@@ -938,29 +1163,34 @@ If the user asks to call a custom function, use action=function.
                     )
                     .trim();
 
-            try {
-                return this.normalizeCommand(
-                    JSON.parse(cleaned)
-                );
-            } catch (error) {
-            }
-
-            const extracted =
-                this.extractJSONObject(
-                    cleaned
-                );
-
-            if (!extracted) {
-                return null;
-            }
+            let parsed;
 
             try {
-                return this.normalizeCommand(
-                    JSON.parse(extracted)
-                );
+                parsed =
+                    JSON.parse(cleaned);
             } catch (error) {
-                return null;
+                const extracted =
+                    this.extractJSONObject(
+                        cleaned
+                    );
+
+                if (!extracted) {
+                    return null;
+                }
+
+                try {
+                    parsed =
+                        JSON.parse(
+                            extracted
+                        );
+                } catch (error2) {
+                    return null;
+                }
             }
+
+            return this.normalizeCommand(
+                parsed
+            );
         }
 
         extractJSONObject(text) {
@@ -980,7 +1210,8 @@ If the user asks to call a custom function, use action=function.
                 i < text.length;
                 i++
             ) {
-                const char = text[i];
+                const char =
+                    text[i];
 
                 if (inString) {
                     if (escaped) {
@@ -998,7 +1229,9 @@ If the user asks to call a custom function, use action=function.
                     continue;
                 }
 
-                if (char === '"') {
+                if (
+                    char === '"'
+                ) {
                     inString = true;
                 } else if (
                     char === "{"
@@ -1025,7 +1258,8 @@ If the user asks to call a custom function, use action=function.
             if (
                 !command ||
                 typeof command !==
-                    "object"
+                    "object" ||
+                Array.isArray(command)
             ) {
                 return null;
             }
@@ -1035,54 +1269,246 @@ If the user asks to call a custom function, use action=function.
                     command.action || ""
                 ).trim();
 
-            if (!action) {
+            const validActions = [
+                "say",
+                "move",
+                "goto",
+                "change_x",
+                "change_y",
+                "set_x",
+                "set_y",
+                "turn",
+                "set_direction",
+                "next_costume",
+                "switch_costume",
+                "change_size",
+                "set_size",
+                "show",
+                "hide",
+                "wait",
+                "function"
+            ];
+
+            if (
+                !validActions.includes(
+                    action
+                )
+            ) {
                 return null;
             }
 
-            if (
-                action ===
-                "function"
-            ) {
-                const name =
-                    String(
-                        command.name ??
-                        command.function ??
-                        ""
-                    ).trim();
+            switch (action) {
+                case "say":
+                    return {
+                        action: "say",
+                        text:
+                            String(
+                                command.text ??
+                                ""
+                            )
+                    };
 
-                const args =
-                    Array.isArray(
-                        command.arguments
-                    )
-                        ? command.arguments
-                        : [];
+                case "move":
+                    return {
+                        action: "move",
+                        steps:
+                            this.number(
+                                command.steps,
+                                0
+                            )
+                    };
 
-                if (!name) {
-                    return null;
+                case "goto":
+                    return {
+                        action: "goto",
+                        x:
+                            this.number(
+                                command.x,
+                                0
+                            ),
+                        y:
+                            this.number(
+                                command.y,
+                                0
+                            )
+                    };
+
+                case "change_x":
+                    return {
+                        action: "change_x",
+                        amount:
+                            this.number(
+                                command.amount,
+                                0
+                            )
+                    };
+
+                case "change_y":
+                    return {
+                        action: "change_y",
+                        amount:
+                            this.number(
+                                command.amount,
+                                0
+                            )
+                    };
+
+                case "set_x":
+                    return {
+                        action: "set_x",
+                        x:
+                            this.number(
+                                command.x,
+                                0
+                            )
+                    };
+
+                case "set_y":
+                    return {
+                        action: "set_y",
+                        y:
+                            this.number(
+                                command.y,
+                                0
+                            )
+                    };
+
+                case "turn":
+                    return {
+                        action: "turn",
+                        degrees:
+                            this.number(
+                                command.degrees,
+                                0
+                            )
+                    };
+
+                case "set_direction":
+                    return {
+                        action:
+                            "set_direction",
+                        degrees:
+                            this.number(
+                                command.degrees,
+                                90
+                            )
+                    };
+
+                case "next_costume":
+                    return {
+                        action:
+                            "next_costume"
+                    };
+
+                case "switch_costume":
+                    return {
+                        action:
+                            "switch_costume",
+                        costume:
+                            String(
+                                command.costume ??
+                                ""
+                            )
+                    };
+
+                case "change_size":
+                    return {
+                        action:
+                            "change_size",
+                        amount:
+                            this.number(
+                                command.amount,
+                                0
+                            )
+                    };
+
+                case "set_size":
+                    return {
+                        action:
+                            "set_size",
+                        size:
+                            this.number(
+                                command.size,
+                                100
+                            )
+                    };
+
+                case "show":
+                    return {
+                        action: "show"
+                    };
+
+                case "hide":
+                    return {
+                        action: "hide"
+                    };
+
+                case "wait":
+                    return {
+                        action: "wait",
+                        seconds:
+                            this.number(
+                                command.seconds,
+                                0
+                            )
+                    };
+
+                case "function": {
+                    const name =
+                        String(
+                            command.name ??
+                            command.function ??
+                            ""
+                        ).trim();
+
+                    if (!name) {
+                        return null;
+                    }
+
+                    const functionDefinition =
+                        this.customFunctions.find(
+                            func =>
+                                func.name
+                                    .toLowerCase() ===
+                                name.toLowerCase()
+                        );
+
+                    if (
+                        !functionDefinition
+                    ) {
+                        return null;
+                    }
+
+                    const functionArguments =
+                        Array.isArray(
+                            command.arguments
+                        )
+                            ? command.arguments
+                            : [];
+
+                    if (
+                        functionArguments.length !==
+                        functionDefinition.argumentCount
+                    ) {
+                        return null;
+                    }
+
+                    return {
+                        action:
+                            "function",
+
+                        name:
+                            functionDefinition.name,
+
+                        arguments:
+                            functionArguments
+                    };
                 }
 
-                return {
-                    action:
-                        "function",
-
-                    name:
-                        name,
-
-                    arguments:
-                        args
-                };
+                default:
+                    return null;
             }
-
-            return {
-                ...command,
-                action:
-                    action
-            };
         }
-
-        // =====================================================
-        // CUSTOM FUNCTION CREATION
-        // =====================================================
 
         createFunction(args) {
             const name =
@@ -1163,8 +1589,9 @@ If the user asks to call a custom function, use action=function.
             const name =
                 String(
                     args.NAME || ""
-                ).trim()
-                .toLowerCase();
+                )
+                    .trim()
+                    .toLowerCase();
 
             if (!name) {
                 return false;
@@ -1219,10 +1646,6 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        // =====================================================
-        // FUNCTION EVENTS
-        // =====================================================
-
         whenFunctionReceived(
             args
         ) {
@@ -1258,25 +1681,21 @@ If the user asks to call a custom function, use action=function.
                         name.toLowerCase()
                 );
 
-            if (!functionDefinition) {
-                this.customFunctions.push({
-                    name:
-                        name,
-
-                    argumentCount:
-                        argumentsList.length
-                });
+            if (
+                !functionDefinition
+            ) {
+                return;
             }
 
             this.lastFunctionName =
-                name;
+                functionDefinition.name;
 
             this.lastFunctionArguments =
                 argumentsList.slice();
 
             const context = {
                 name:
-                    name,
+                    functionDefinition.name,
 
                 arguments:
                     argumentsList.slice()
@@ -1298,13 +1717,13 @@ If the user asks to call a custom function, use action=function.
                     "aispritecontroller_whenFunctionReceived",
                     {
                         FUNCTION:
-                            name
+                            functionDefinition.name
                     }
                 );
 
             for (
-                const thread of
-                    threads || []
+                const thread
+                of threads || []
             ) {
                 this.functionContexts.set(
                     thread,
@@ -1433,10 +1852,6 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        // =====================================================
-        // EXECUTE AI COMMAND
-        // =====================================================
-
         async executeCommand(
             command,
             target
@@ -1458,28 +1873,15 @@ If the user asks to call a custom function, use action=function.
                 case "move":
                     this.move(
                         target,
-                        this.number(
-                            command.steps,
-                            0
-                        )
+                        command.steps
                     );
                     break;
 
                 case "goto":
                     this.goTo(
                         target,
-                        this.number(
-                            command.x,
-                            target
-                                ? target.x
-                                : 0
-                        ),
-                        this.number(
-                            command.y,
-                            target
-                                ? target.y
-                                : 0
-                        )
+                        command.x,
+                        command.y
                     );
                     break;
 
@@ -1487,10 +1889,8 @@ If the user asks to call a custom function, use action=function.
                     if (target) {
                         target.setXY(
                             target.x +
-                                this.number(
-                                    command.amount,
-                                    0
-                                ),
+                                command.amount,
+
                             target.y
                         );
                     }
@@ -1500,11 +1900,9 @@ If the user asks to call a custom function, use action=function.
                     if (target) {
                         target.setXY(
                             target.x,
+
                             target.y +
-                                this.number(
-                                    command.amount,
-                                    0
-                                )
+                                command.amount
                         );
                     }
                     break;
@@ -1512,10 +1910,8 @@ If the user asks to call a custom function, use action=function.
                 case "set_x":
                     if (target) {
                         target.setXY(
-                            this.number(
-                                command.x,
-                                target.x
-                            ),
+                            command.x,
+
                             target.y
                         );
                     }
@@ -1525,10 +1921,8 @@ If the user asks to call a custom function, use action=function.
                     if (target) {
                         target.setXY(
                             target.x,
-                            this.number(
-                                command.y,
-                                target.y
-                            )
+
+                            command.y
                         );
                     }
                     break;
@@ -1537,10 +1931,7 @@ If the user asks to call a custom function, use action=function.
                     if (target) {
                         target.setDirection(
                             target.direction +
-                                this.number(
-                                    command.degrees,
-                                    0
-                                )
+                                command.degrees
                         );
                     }
                     break;
@@ -1548,10 +1939,7 @@ If the user asks to call a custom function, use action=function.
                 case "set_direction":
                     if (target) {
                         target.setDirection(
-                            this.number(
-                                command.degrees,
-                                target.direction
-                            )
+                            command.degrees
                         );
                     }
                     break;
@@ -1577,10 +1965,7 @@ If the user asks to call a custom function, use action=function.
                     ) {
                         target.setSize(
                             target.size +
-                                this.number(
-                                    command.amount,
-                                    0
-                                )
+                                command.amount
                         );
                     }
                     break;
@@ -1592,10 +1977,7 @@ If the user asks to call a custom function, use action=function.
                             "function"
                     ) {
                         target.setSize(
-                            this.number(
-                                command.size,
-                                target.size
-                            )
+                            command.size
                         );
                     }
                     break;
@@ -1618,10 +2000,7 @@ If the user asks to call a custom function, use action=function.
                     await this.delay(
                         Math.max(
                             0,
-                            this.number(
-                                command.seconds,
-                                0
-                            )
+                            command.seconds
                         ) * 1000
                     );
                     break;
@@ -1634,10 +2013,6 @@ If the user asks to call a custom function, use action=function.
                     break;
             }
         }
-
-        // =====================================================
-        // SPRITE COMMANDS
-        // =====================================================
 
         say(target, text) {
             if (!target) {
@@ -1653,22 +2028,32 @@ If the user asks to call a custom function, use action=function.
                 typeof target.setSay ===
                 "function"
             ) {
-                target.setSay(value);
+                target.setSay(
+                    value
+                );
             } else if (
                 typeof target.say ===
                 "function"
             ) {
-                target.say(value);
+                target.say(
+                    value
+                );
             }
         }
 
-        move(target, steps) {
+        move(
+            target,
+            steps
+        ) {
             if (!target) {
                 return;
             }
 
             const direction =
-                (target.direction - 90) *
+                (
+                    target.direction -
+                    90
+                ) *
                 Math.PI /
                 180;
 
@@ -1687,7 +2072,11 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        goTo(target, x, y) {
+        goTo(
+            target,
+            x,
+            y
+        ) {
             if (!target) {
                 return;
             }
@@ -1698,8 +2087,13 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        changeX(args, util) {
-            if (!util?.target) {
+        changeX(
+            args,
+            util
+        ) {
+            if (
+                !util?.target
+            ) {
                 return;
             }
 
@@ -1714,8 +2108,13 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        changeY(args, util) {
-            if (!util?.target) {
+        changeY(
+            args,
+            util
+        ) {
+            if (
+                !util?.target
+            ) {
                 return;
             }
 
@@ -1730,8 +2129,13 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        setX(args, util) {
-            if (!util?.target) {
+        setX(
+            args,
+            util
+        ) {
+            if (
+                !util?.target
+            ) {
                 return;
             }
 
@@ -1745,8 +2149,13 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        setY(args, util) {
-            if (!util?.target) {
+        setY(
+            args,
+            util
+        ) {
+            if (
+                !util?.target
+            ) {
                 return;
             }
 
@@ -1760,8 +2169,13 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        turn(args, util) {
-            if (!util?.target) {
+        turn(
+            args,
+            util
+        ) {
+            if (
+                !util?.target
+            ) {
                 return;
             }
 
@@ -1778,7 +2192,9 @@ If the user asks to call a custom function, use action=function.
             args,
             util
         ) {
-            if (!util?.target) {
+            if (
+                !util?.target
+            ) {
                 return;
             }
 
@@ -1790,7 +2206,9 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        nextCostume(target) {
+        nextCostume(
+            target
+        ) {
             if (!target) {
                 return;
             }
@@ -1807,7 +2225,7 @@ If the user asks to call a custom function, use action=function.
 
             if (
                 typeof target.setCostume ===
-                "function"
+                    "function"
             ) {
                 const current =
                     Number.isFinite(
@@ -1817,7 +2235,10 @@ If the user asks to call a custom function, use action=function.
                         : 0;
 
                 target.setCostume(
-                    (current + 1) %
+                    (
+                        current +
+                        1
+                    ) %
                         costumes.length
                 );
             }
@@ -1865,7 +2286,8 @@ If the user asks to call a custom function, use action=function.
 
             if (
                 index >= 0 &&
-                index < costumes.length &&
+                index <
+                    costumes.length &&
                 typeof target.setCostume ===
                     "function"
             ) {
@@ -1916,21 +2338,33 @@ If the user asks to call a custom function, use action=function.
             );
         }
 
-        show(args, util) {
-            if (util?.target) {
+        show(
+            args,
+            util
+        ) {
+            if (
+                util?.target
+            ) {
                 util.target.visible =
                     true;
             }
         }
 
-        hide(args, util) {
-            if (util?.target) {
+        hide(
+            args,
+            util
+        ) {
+            if (
+                util?.target
+            ) {
                 util.target.visible =
                     false;
             }
         }
 
-        async wait(args) {
+        async wait(
+            args
+        ) {
             await this.delay(
                 Math.max(
                     0,
@@ -1941,10 +2375,6 @@ If the user asks to call a custom function, use action=function.
                 ) * 1000
             );
         }
-
-        // =====================================================
-        // HELPERS
-        // =====================================================
 
         argumentToString(
             value
@@ -2001,4 +2431,5 @@ If the user asks to call a custom function, use action=function.
     Scratch.extensions.register(
         new AISpriteController()
     );
+
 })(Scratch);

@@ -28,14 +28,6 @@
 
             this.lastTarget = null;
 
-            /*
-             * Custom functions created by the user.
-             *
-             * {
-             *     name: "jump",
-             *     argumentCount: 2
-             * }
-             */
             this.customFunctions = [];
 
             this.lastFunctionName = "";
@@ -45,6 +37,8 @@
 
             this.functionContexts =
                 new WeakMap();
+
+            this.runtime = Scratch.vm.runtime;
         }
 
         getInfo() {
@@ -746,8 +740,15 @@ If the user asks to call a custom function, use action=function.
                     }
                 ];
 
+                // IMPORTANT:
+                // Cocrea/Gandi does not provide
+                // Scratch.fetch().
+                //
+                // Use the browser's normal
+                // fetch() function instead.
+
                 const response =
-                    await Scratch.fetch(
+                    await fetch(
                         this.apiUrl,
                         {
                             method: "POST",
@@ -1134,11 +1135,6 @@ If the user asks to call a custom function, use action=function.
                 });
             }
 
-            /*
-             * Make sure the function
-             * can immediately appear
-             * in the function dropdown.
-             */
             this.registerFunctionName(
                 name
             );
@@ -1195,13 +1191,6 @@ If the user asks to call a custom function, use action=function.
             if (!name) {
                 return;
             }
-
-            /*
-             * Scratch menus are generated
-             * from the custom function list,
-             * so no separate permanent list
-             * is required.
-             */
         }
 
         getFunctionNames() {
@@ -1237,13 +1226,6 @@ If the user asks to call a custom function, use action=function.
         whenFunctionReceived(
             args
         ) {
-            /*
-             * The actual event is started
-             * with runtime.startHats().
-             *
-             * This method exists so the
-             * block is a valid Scratch hat.
-             */
             return false;
         }
 
@@ -1268,10 +1250,6 @@ If the user asks to call a custom function, use action=function.
                 argumentsList = [];
             }
 
-            /*
-             * A function must be created
-             * before it can be called.
-             */
             const functionDefinition =
                 this.customFunctions.find(
                     func =>
@@ -1281,11 +1259,6 @@ If the user asks to call a custom function, use action=function.
                 );
 
             if (!functionDefinition) {
-                /*
-                 * Allow the AI to discover/
-                 * register a function if it
-                 * wasn't manually created.
-                 */
                 this.customFunctions.push({
                     name:
                         name,
@@ -1312,12 +1285,14 @@ If the user asks to call a custom function, use action=function.
             this.lastFunctionContext =
                 context;
 
-            /*
-             * Scratch/Gandi event hat.
-             *
-             * The opcode MUST match the
-             * extension id + hat opcode.
-             */
+            if (
+                !this.runtime ||
+                typeof this.runtime.startHats !==
+                    "function"
+            ) {
+                return;
+            }
+
             const threads =
                 this.runtime.startHats(
                     "aispritecontroller_whenFunctionReceived",
